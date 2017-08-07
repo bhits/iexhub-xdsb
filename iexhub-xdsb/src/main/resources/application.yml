@@ -1,0 +1,16 @@
+server:
+  port: 8468
+logging:
+  file: /java/C2S_LOGS/iexhub-xdsb/iexhub-xdsb.log
+info:
+  component: IExHub XDS.b Spring Boot
+ribbon:
+  ReadTimeout: 50000
+hystrix.command.default.execution.timeout.enabled: false
+---
+spring.profiles: standalone-ssl
+spring:
+  profiles:
+    include: ssl-default
+server:
+  context-path: /iexhub-xdsb
