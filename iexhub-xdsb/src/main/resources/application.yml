@@ -1,5 +1,5 @@
 server:
-  port: 8468
+  port: 8469
 logging:
   file: /java/C2S_LOGS/iexhub-xdsb/iexhub-xdsb.log
 info:
