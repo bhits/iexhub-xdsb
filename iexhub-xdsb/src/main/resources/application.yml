@@ -7,6 +7,14 @@ info:
 ribbon:
   ReadTimeout: 50000
 hystrix.command.default.execution.timeout.enabled: false
+c2s:
+  iexhub-xdsb:
+    hieos:
+      enabled: true
+      # configure HIEOS specific information
+      xdsBRegistryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsregistryb
+      xdsBRepositoryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsrepositoryb
+      clientSocketTimeoutInMs: 768000
 ---
 spring.profiles: standalone-ssl
 spring:
