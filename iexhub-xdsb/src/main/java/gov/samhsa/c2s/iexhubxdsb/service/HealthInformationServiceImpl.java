@@ -16,11 +16,39 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.IdentifiableType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
 import org.springframework.stereotype.Service;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import javax.xml.bind.JAXBElement;
+import javax.xml.namespace.NamespaceContext;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+
+import static java.nio.file.Files.readAllBytes;
+import static java.nio.file.Paths.get;
 
 @Service
 @Slf4j
@@ -29,6 +57,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     private final IExHubXdsbProperties iexhubXdsbProperties;
 
     private static final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
+
+    private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
 
     public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
@@ -89,9 +119,105 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.info("Call to XdsB Repository was successful");
 
             //Step 5: Convert the obtained documents into JSON format
-
+            if (retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
+                String jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
+            } else {
+                log.info("No documents found");
+            }
         }
         return null;
+    }
+
+    private String convertDocumentResponseToJSON(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
+        StringBuilder jsonOutput = new StringBuilder();
+        jsonOutput.append("{\"Documents\":[");
+        boolean first = true;
+
+        for (RetrieveDocumentSetResponseType.DocumentResponse docResponse : documentResponseList) {
+            if (!first) {
+                jsonOutput.append(",");
+            }
+            first = false;
+            String documentId = docResponse.getDocumentUniqueId();
+            log.info("Processing document ID=" + documentId);
+
+            String mimeType = docResponse.getMimeType();
+            if (mimeType.equalsIgnoreCase("text/xml")) {
+                final String filename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + ".xml";
+                byte[] documentContents = docResponse.getDocument();
+                persistDocument(filename, documentContents);
+                Document doc = parseDocument(filename);
+                NodeList nodes = convertDocumentToNodeList(doc);
+
+                boolean templateFound = false;
+                if (nodes != null && nodes.getLength() > 0) {
+                    log.info("Searching for /ClinicalDocument/templateId, document ID = " + documentId);
+
+                    for (int i = 0; i < nodes.getLength(); ++i) {
+                        String val = ((Element) nodes.item(i)).getAttribute("root");
+                        if ((val != null) &&
+                                (val.compareToIgnoreCase("2.16.840.1.113883.10.20.22.1.2") == 0)) {
+                            log.info("/ClinicalDocument/templateId node found, document ID=" + documentId);
+
+                            log.info("Invoking XSL transform, document ID=" + documentId);
+                            DOMSource source = getDOMSource(filename);
+
+                            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                            Transformer transformer = null;
+                            try {
+                                transformer = transformerFactory.newTransformer(new StreamSource(CDAToJsonXSL));
+                            }
+                            catch (TransformerConfigurationException e) {
+                                log.error("Unable to create a  Transformer instance" + e.getMessage());
+                            }
+
+                            final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + ".json";
+                            File jsonFile = new File(jsonFilename);
+                            try {
+                                FileOutputStream jsonFileOutStream = new FileOutputStream(jsonFile);
+                                StreamResult result = new StreamResult(jsonFileOutStream);
+                                transformer.transform(source, result);
+                                jsonFileOutStream.close();
+
+                                log.info("Successfully transformed CCDA to JSON, filename=" + jsonFilename);
+
+                                jsonOutput.append(new String(readAllBytes(get(jsonFilename))));
+
+                                templateFound = true;
+                            }
+                            catch (TransformerException e) {
+                                log.error("Unable to create a  Transformer instance" + e.getMessage());
+                            }
+                            catch (FileNotFoundException e) {
+                                log.error("JSON file:" + jsonFilename + "not found -" + e.getMessage());
+                            }
+                            catch (IOException e) {
+                                log.error("IO Exception when reading JSON file:" + jsonFilename + e.getMessage());
+                            }
+
+                        }
+
+                    }
+
+                } else {
+                    log.info("NodeList is NULL.");
+                }
+
+                if (!templateFound) {
+                    log.error("Document: " + documentId + " retrieved doesn't match required template ID");
+                    //TODO: Add to response error messages
+                }
+            } else {
+                log.error("Document: " + documentId + " is not XML");
+                //TODO: Add to response error messages
+            }
+        }
+
+        if (jsonOutput.length() > 0) {
+            jsonOutput.append("]}");
+        }
+
+        return jsonOutput.toString();
     }
 
     private HashMap<String, String> getDocumentsFromDocumentObjects(List<JAXBElement<? extends IdentifiableType>> documentObjects) {
@@ -162,6 +288,104 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         documentSetRequest.getDocumentRequest().addAll(documentRequest);
         return documentSetRequest;
+    }
+
+
+    private void persistDocument(String filename, byte[] documentContents) {
+        log.info("Persisting document (" + filename + ") to filesystem");
+
+
+        File file = new File(filename);
+        FileOutputStream fileOutStream;
+        try {
+            fileOutStream = new FileOutputStream(file);
+            fileOutStream.write(documentContents);
+            fileOutStream.close();
+        }
+        catch (FileNotFoundException e) {
+            log.error("File(" + filename + ") not found. " + e.getMessage());
+        }
+        catch (IOException e) {
+            log.error("IOException when writing the file. " + e.getMessage());
+        }
+    }
+
+    private Document parseDocument(String filename) {
+
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder dBuilder;
+        Document doc = null;
+        try {
+            dBuilder = dbFactory.newDocumentBuilder();
+            doc = dBuilder.parse(new FileInputStream(filename));
+        }
+        catch (ParserConfigurationException | SAXException e) {
+            log.error(e.getMessage());
+        }
+        catch (FileNotFoundException e) {
+            log.error("File(" + filename + ") not found. " + e.getMessage());
+        }
+        catch (IOException e) {
+            log.error("IOException when parsing the file. " + e.getMessage());
+        }
+
+        return doc;
+    }
+
+    private NodeList convertDocumentToNodeList(Document doc) {
+        XPath xPath = XPathFactory.newInstance().newXPath();
+        NodeList nodes = null;
+        //set namespace to xpath
+        xPath.setNamespaceContext(new NamespaceContext() {
+            private final String uri = "urn:hl7-org:v3";
+            private final String prefix = "hl7";
+
+            @Override
+            public String getNamespaceURI(String prefix) {
+                return this.prefix.equals(prefix) ? uri : null;
+            }
+
+            @Override
+            public String getPrefix(String namespaceURI) {
+                return this.uri.equals(namespaceURI) ? this.prefix : null;
+            }
+
+            @Override
+            public Iterator getPrefixes(String namespaceURI) {
+                return null;
+            }
+        });
+
+        try {
+            nodes = (NodeList) xPath.evaluate("/hl7:ClinicalDocument/hl7:templateId",
+                    doc.getDocumentElement(),
+                    XPathConstants.NODESET);
+        }
+        catch (XPathExpressionException e) {
+            log.error(e.getMessage());
+        }
+
+        return nodes;
+    }
+
+    private DOMSource getDOMSource(String filename) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder;
+        DOMSource source;
+        Document mappedDoc = null;
+        try {
+            builder = factory.newDocumentBuilder();
+            mappedDoc = builder.parse(new File(filename));
+        }
+        catch (ParserConfigurationException | SAXException e) {
+            log.error(e.getMessage());
+        }
+        catch (IOException e) {
+            log.error("IOException when parsing the file. " + e.getMessage());
+        }
+        source = new DOMSource(mappedDoc);
+        return source;
     }
 
 
