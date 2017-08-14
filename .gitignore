@@ -204,6 +204,7 @@ local.properties
 
 # STS (Spring Tool Suite)
 .springBeans
+.apt_generated
 
 
 # NetBeans #
