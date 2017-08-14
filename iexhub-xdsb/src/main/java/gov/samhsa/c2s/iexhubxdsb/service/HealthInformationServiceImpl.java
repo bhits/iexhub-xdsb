@@ -11,6 +11,8 @@ public class HealthInformationServiceImpl implements HealthInformationService{
 
     private final IExHubXdsbProperties iexhubXdsbProperties;
 
+    private static final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
+
     public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
     }
