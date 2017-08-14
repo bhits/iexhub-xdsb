@@ -37,5 +37,8 @@ public class IExHubXdsbProperties {
 
         @NotEmpty
         private String xdsBRepositoryUniqueId;
+
+        @NotEmpty
+        private String documentsOutputPath;
     }
 }
