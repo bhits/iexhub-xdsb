@@ -3,8 +3,11 @@ package gov.samhsa.c2s.iexhubxdsb.service;
 import gov.samhsa.acs.xdsb.registry.common.XdsbDocumentType;
 import gov.samhsa.acs.xdsb.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
+import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
+import ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType;
+import ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType;
 import lombok.extern.slf4j.Slf4j;
 import oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryResponse;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExternalIdentifierType;
@@ -15,6 +18,7 @@ import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
 import org.springframework.stereotype.Service;
 
 import javax.xml.bind.JAXBElement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -72,11 +76,17 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.info("Some documents were found in the Registry for the given Patient ID");
             HashMap<String, String> documents = getDocumentsFromDocumentObjects(documentObjects);
 
-            if(documents.size() ==0){
+            if (documents.size() == 0) {
                 log.info("No XDSDocumentEntry documents found for the given Patient ID");
                 return new PatientHealthDataDto();
             }
             //Step 4: Using the Document IDs, perform XDS.d Repository call
+            XdsbRepositoryWebServiceClient repositoryClient = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
+            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getHieos().getXdsBRepositoryUniqueId(), documents);
+
+            log.info("Calling XdsB Repository");
+            RetrieveDocumentSetResponseType retrieveDocumentSetResponse = repositoryClient.documentRepositoryRetrieveDocumentSet(documentSetRequest);
+            log.info("Call to XdsB Repository was successful");
 
             //Step 5: Convert the obtained documents into JSON format
 
@@ -132,5 +142,27 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         log.info("Number of XDSDocumentEntry documents found = " + documents.size());
         return documents;
     }
+
+    private RetrieveDocumentSetRequestType constructDocumentSetRequest(String repositoryUniqueId,
+                                                                       HashMap<String, String> documents) {
+        List<RetrieveDocumentSetRequestType.DocumentRequest> documentRequest = new ArrayList<>();
+        RetrieveDocumentSetRequestType documentSetRequest = new RetrieveDocumentSetRequestType();
+
+        for (String documentId : documents.keySet()) {
+            RetrieveDocumentSetRequestType.DocumentRequest tempDocumentRequest = new RetrieveDocumentSetRequestType.DocumentRequest();
+            tempDocumentRequest.setDocumentUniqueId(documentId);
+            tempDocumentRequest.setRepositoryUniqueId(repositoryUniqueId);
+
+            if (documents.get(documentId) != null) {
+                //HomeCommunityId is present
+                tempDocumentRequest.setHomeCommunityId(documents.get(documentId));
+            }
+            documentRequest.add(tempDocumentRequest);
+        }
+
+        documentSetRequest.getDocumentRequest().addAll(documentRequest);
+        return documentSetRequest;
+    }
+
 
 }
