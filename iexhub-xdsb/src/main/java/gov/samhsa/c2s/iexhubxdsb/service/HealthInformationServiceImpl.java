@@ -125,6 +125,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 log.info("No documents found");
             }
         }
+
+        //TODO: Return appropriate response
         return null;
     }
 
