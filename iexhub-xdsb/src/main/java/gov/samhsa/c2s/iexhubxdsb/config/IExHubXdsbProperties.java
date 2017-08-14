@@ -34,5 +34,8 @@ public class IExHubXdsbProperties {
 
         @NotEmpty
         private String xdsBRepositoryEndpointURI;
+
+        @NotEmpty
+        private String xdsBRepositoryUniqueId;
     }
 }
