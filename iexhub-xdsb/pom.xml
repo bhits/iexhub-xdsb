@@ -10,6 +10,33 @@
 
 	<name>iexhub-xdsb</name>
 	<description>Spring Boot Project for XDS.b Operations</description>
+	<url>${project.scm.url}</url>
+
+	<organization>
+		<name>SAMHSA</name>
+		<url>http://www.samhsa.gov/</url>
+	</organization>
+
+	<developers>
+		<developer>
+			<id>BHITS Team</id>
+			<name>BHITS Team</name>
+			<organization>FEi Systems</organization>
+		</developer>
+	</developers>
+
+	<licenses>
+		<license>
+			<name>See license in LICENSE.md</name>
+			<url>${project.scm.url}/blob/master/LICENSE.md</url>
+		</license>
+	</licenses>
+
+	<scm>
+		<url>https://github.com/bhits-dev/iexhub-xdsb</url>
+		<connection>scm:git:${project.scm.url}.git</connection>
+		<developerConnection>scm:git:${project.scm.url}.git</developerConnection>
+	</scm>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
