@@ -67,8 +67,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     @Override
     public PatientHealthDataDto getPatientHealthDataFromHIE(String patientId) {
-        String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsBRegistryEndpointURI();
-        String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsBRepositoryEndpointURI();
+        String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
+        String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
 
@@ -112,7 +112,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             }
             //Step 4: Using the Document IDs, perform XDS.d Repository call
             XdsbRepositoryWebServiceClient repositoryClient = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
-            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getHieos().getXdsBRepositoryUniqueId(), documents);
+            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getHieos().getXdsbRepositoryUniqueId(), documents);
 
             log.info("Calling XdsB Repository");
             RetrieveDocumentSetResponseType retrieveDocumentSetResponse = repositoryClient.documentRepositoryRetrieveDocumentSet(documentSetRequest);

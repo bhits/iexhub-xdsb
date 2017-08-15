@@ -18,25 +18,25 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 public class IExHubXdsbProperties {
     @NotNull
-    private HieOs hieos;
+    private Hieos hieos;
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class HieOs {
+    public static class Hieos {
 
         @NotNull
         private boolean enabled;
 
         @NotEmpty
-        private String xdsBRegistryEndpointURI;
+        private String xdsbRegistryEndpointURI;
 
         @NotEmpty
-        private String xdsBRepositoryEndpointURI;
+        private String xdsbRepositoryEndpointURI;
 
         @NotEmpty
-        private String xdsBRepositoryUniqueId;
+        private String xdsbRepositoryUniqueId;
 
         @NotEmpty
         private String documentsOutputPath;
