@@ -331,9 +331,9 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder;
         Document doc;
-        try {
+        try (FileInputStream fis = new FileInputStream(filename)) {
             dBuilder = dbFactory.newDocumentBuilder();
-            doc = dBuilder.parse(new FileInputStream(filename));
+            doc = dBuilder.parse(fis);
         }
         catch (ParserConfigurationException | SAXException e) {
             log.error(e.getMessage());
