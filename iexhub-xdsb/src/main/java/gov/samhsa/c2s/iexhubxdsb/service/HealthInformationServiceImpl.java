@@ -188,11 +188,10 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
                             final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.JSON_EXTENSION;
                             File jsonFile = new File(jsonFilename);
-                            try {
-                                FileOutputStream jsonFileOutStream = new FileOutputStream(jsonFile);
+
+                            try (FileOutputStream jsonFileOutStream = new FileOutputStream(jsonFile)) {
                                 StreamResult result = new StreamResult(jsonFileOutStream);
                                 transformer.transform(source, result);
-                                jsonFileOutStream.close();
 
                                 log.info("Successfully transformed CCDA to JSON, filename : " + jsonFilename);
 
@@ -210,7 +209,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                             }
                             catch (IOException e) {
                                 log.error("IO Exception when reading JSON file: " + jsonFilename + e.getMessage());
-                                throw new FileParseException("IO Exception when reading JSON file: " + jsonFilename , e);
+                                throw new FileParseException("IO Exception when reading JSON file: " + jsonFilename, e);
                             }
 
                         }
@@ -314,11 +313,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
 
         File file = new File(filename);
-        FileOutputStream fileOutStream;
-        try {
-            fileOutStream = new FileOutputStream(file);
+        try (FileOutputStream fileOutStream = new FileOutputStream(file)) {
             fileOutStream.write(documentContents);
-            fileOutStream.close();
         }
         catch (FileNotFoundException e) {
             log.error("File(" + filename + ") not found. " + e.getMessage());
@@ -405,7 +401,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
         catch (ParserConfigurationException | SAXException e) {
             log.error(e.getMessage());
-            throw new FileParseException("Error parsing the file:"  + filename, e);
+            throw new FileParseException("Error parsing the file: " + filename, e);
         }
         catch (IOException e) {
             log.error("IOException when parsing the file: " + e.getMessage());
