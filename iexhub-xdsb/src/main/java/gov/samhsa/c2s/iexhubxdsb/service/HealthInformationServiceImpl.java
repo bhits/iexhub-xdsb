@@ -59,8 +59,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     private final IExHubXdsbProperties iexhubXdsbProperties;
 
-    private static final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
-
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
 
     private static final String ROOT_ATTRIBUTE = "root";
@@ -78,6 +76,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
+        //TODO: Remove hardcoded PATIENT_ID when PIX query is ready
+        final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
 
         //Step 2: Using the enterprise ID, perform XDS.b Registry Operation
         XdsbRegistryAdapter xdsbRegistryAdapter = new XdsbRegistryAdapter(new XdsbRegistryWebServiceClient(registryEndpoint));
