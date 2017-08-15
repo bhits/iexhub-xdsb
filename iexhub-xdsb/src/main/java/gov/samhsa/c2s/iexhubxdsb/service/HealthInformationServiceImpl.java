@@ -130,7 +130,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.info("Call to XdsB Repository was successful");
 
             //Step 5: Convert the obtained documents into JSON format
-            if (retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
+            if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
                 jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
             } else {
                 log.info("Retrieve Document Set transaction found no documents for the given Patient ID");
