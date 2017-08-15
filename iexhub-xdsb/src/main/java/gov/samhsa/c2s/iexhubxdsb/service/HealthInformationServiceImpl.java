@@ -7,6 +7,10 @@ import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.FileExtension;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.FileNotFound;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.XdsbRegistryException;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +78,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     public PatientHealthDataDto getPatientHealthDataFromHIE(String patientId) {
         final String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
         final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
+        PatientHealthDataDto patientHealthData = new PatientHealthDataDto();
+        String jsonOutput;
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
         //TODO: Remove hardcoded PATIENT_ID when PIX query is ready
@@ -87,18 +93,16 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         //Check for errors
         if ((adhocQueryResponse.getRegistryErrorList() != null) &&
                 (adhocQueryResponse.getRegistryErrorList().getRegistryError().size() > 0)) {
-            log.info("Calling to XdsB registry return an error");
-            log.debug("Printing error messages");
+            log.info("Call to XdsB registry returned an error");
+            log.error("Printing error messages");
             for (RegistryError error : adhocQueryResponse.getRegistryErrorList().getRegistryError()) {
-                log.debug("Error Code: ", error.getErrorCode());
-                log.debug("Error Code Context: ", error.getCodeContext());
-                log.debug("Error Location: ", error.getLocation());
-                log.debug("Error Severity: ", error.getSeverity());
-                log.debug("Error Value: ", error.getValue());
+                log.error("Error Code: ", error.getErrorCode());
+                log.error("Error Code Context: ", error.getCodeContext());
+                log.error("Error Location: ", error.getLocation());
+                log.error("Error Severity: ", error.getSeverity());
+                log.error("Error Value: ", error.getValue());
             }
-            //TODO: Return an exception
-            log.info("Returning NULL");
-            return null;
+            throw new XdsbRegistryException("Call to XdsB registry returned an error. Check iexhub-xdsb.log for details.");
         }
         log.info("XdsB Registry call was successful");
 
@@ -106,16 +110,16 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         List<JAXBElement<? extends IdentifiableType>> documentObjects = adhocQueryResponse.getRegistryObjectList().getIdentifiable();
 
         if ((documentObjects == null) ||
-                (documentObjects.size() == 0)) {
+                (documentObjects.size() <= 0)) {
             log.info("No documents found for the given Patient ID");
-            return new PatientHealthDataDto();
+            throw new NoDocumentsFoundException("No documents found for the given Patient ID");
         } else {
             log.info("Some documents were found in the Registry for the given Patient ID");
             HashMap<String, String> documents = getDocumentsFromDocumentObjects(documentObjects);
 
-            if (documents.size() == 0) {
+            if (documents.size() <= 0) {
                 log.info("No XDSDocumentEntry documents found for the given Patient ID");
-                return new PatientHealthDataDto();
+                throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID");
             }
             //Step 4: Using the Document IDs, perform XDS.d Repository call
             XdsbRepositoryWebServiceClient repositoryClient = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
@@ -127,14 +131,15 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
             //Step 5: Convert the obtained documents into JSON format
             if (retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
-                String jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
+                jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
             } else {
-                log.info("No documents found");
+                log.info("Retrieve Document Set transaction found no documents for the given Patient ID");
+                throw new NoDocumentsFoundException("Retrieve Document Set transaction found no documents for the given Patient ID");
             }
         }
 
-        //TODO: Return appropriate response
-        return null;
+        //Todo: Convert json to DTO
+        return patientHealthData;
     }
 
     private String convertDocumentResponseToJSON(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
@@ -148,7 +153,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             }
             first = false;
             String documentId = docResponse.getDocumentUniqueId();
-            log.info("Processing document ID=" + documentId);
+            log.info("Processing document ID: " + documentId);
 
             String mimeType = docResponse.getMimeType();
             if (mimeType.equalsIgnoreCase(MediaType.TEXT_XML_VALUE)) {
@@ -160,24 +165,25 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
                 boolean templateFound = false;
                 if (nodes != null && nodes.getLength() > 0) {
-                    log.info("Searching for /ClinicalDocument/templateId, document ID = " + documentId);
+                    log.info("Searching for /ClinicalDocument/templateId, document ID: " + documentId);
 
                     for (int i = 0; i < nodes.getLength(); ++i) {
                         String val = ((Element) nodes.item(i)).getAttribute(ROOT_ATTRIBUTE);
                         if ((val != null) &&
                                 (val.compareToIgnoreCase("2.16.840.1.113883.10.20.22.1.2") == 0)) {
-                            log.info("/ClinicalDocument/templateId node found, document ID=" + documentId);
+                            log.debug("/ClinicalDocument/templateId node found, document ID: " + documentId);
 
-                            log.info("Invoking XSL transform, document ID=" + documentId);
+                            log.info("Invoking XSL transform, document ID: " + documentId);
                             DOMSource source = getDOMSource(filename);
 
                             TransformerFactory transformerFactory = TransformerFactory.newInstance();
-                            Transformer transformer = null;
+                            Transformer transformer;
                             try {
                                 transformer = transformerFactory.newTransformer(new StreamSource(CDAToJsonXSL));
                             }
                             catch (TransformerConfigurationException e) {
                                 log.error("Unable to create a  Transformer instance" + e.getMessage());
+                                throw new FileParseException("Unable to create a  Transformer instance", e);
                             }
 
                             final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.JSON_EXTENSION;
@@ -188,7 +194,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                                 transformer.transform(source, result);
                                 jsonFileOutStream.close();
 
-                                log.info("Successfully transformed CCDA to JSON, filename=" + jsonFilename);
+                                log.info("Successfully transformed CCDA to JSON, filename : " + jsonFilename);
 
                                 jsonOutput.append(new String(readAllBytes(get(jsonFilename))));
 
@@ -196,12 +202,15 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                             }
                             catch (TransformerException e) {
                                 log.error("Unable to create a  Transformer instance" + e.getMessage());
+                                throw new FileParseException("Unable to transform DOM source to JSON", e);
                             }
                             catch (FileNotFoundException e) {
-                                log.error("JSON file:" + jsonFilename + "not found -" + e.getMessage());
+                                log.error("JSON file:" + jsonFilename + "not found");
+                                throw new FileNotFound("JSON file: " + jsonFilename + " not found.", e);
                             }
                             catch (IOException e) {
-                                log.error("IO Exception when reading JSON file:" + jsonFilename + e.getMessage());
+                                log.error("IO Exception when reading JSON file: " + jsonFilename + e.getMessage());
+                                throw new FileParseException("IO Exception when reading JSON file: " + jsonFilename , e);
                             }
 
                         }
@@ -313,9 +322,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
         catch (FileNotFoundException e) {
             log.error("File(" + filename + ") not found. " + e.getMessage());
+            throw new FileNotFound("File(" + filename + ") not found. ", e);
         }
         catch (IOException e) {
             log.error("IOException when writing the file. " + e.getMessage());
+            throw new FileParseException("IOException when writing the file: " + filename, e);
         }
     }
 
@@ -323,19 +334,23 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder;
-        Document doc = null;
+        Document doc;
         try {
             dBuilder = dbFactory.newDocumentBuilder();
             doc = dBuilder.parse(new FileInputStream(filename));
         }
         catch (ParserConfigurationException | SAXException e) {
             log.error(e.getMessage());
+            throw new FileParseException(e);
         }
         catch (FileNotFoundException e) {
             log.error("File(" + filename + ") not found. " + e.getMessage());
+            throw new FileNotFound("File(" + filename + ") not found. ", e);
+
         }
         catch (IOException e) {
             log.error("IOException when parsing the file. " + e.getMessage());
+            throw new FileParseException("IOException when parsing the file: " + filename, e);
         }
 
         return doc;
@@ -343,7 +358,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     private NodeList convertDocumentToNodeList(Document doc) {
         XPath xPath = XPathFactory.newInstance().newXPath();
-        NodeList nodes = null;
+        NodeList nodes;
         //set namespace to xpath
         xPath.setNamespaceContext(new NamespaceContext() {
             private final String uri = "urn:hl7-org:v3";
@@ -372,6 +387,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
         catch (XPathExpressionException e) {
             log.error(e.getMessage());
+            throw new FileParseException("Error evaluating XPath expression", e);
         }
 
         return nodes;
@@ -382,16 +398,18 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         factory.setNamespaceAware(true);
         DocumentBuilder builder;
         DOMSource source;
-        Document mappedDoc = null;
+        Document mappedDoc;
         try {
             builder = factory.newDocumentBuilder();
             mappedDoc = builder.parse(new File(filename));
         }
         catch (ParserConfigurationException | SAXException e) {
             log.error(e.getMessage());
+            throw new FileParseException("Error parsing the file:"  + filename, e);
         }
         catch (IOException e) {
-            log.error("IOException when parsing the file. " + e.getMessage());
+            log.error("IOException when parsing the file: " + e.getMessage());
+            throw new FileParseException("IOException when parsing the file: " + filename, e);
         }
         source = new DOMSource(mappedDoc);
         return source;
