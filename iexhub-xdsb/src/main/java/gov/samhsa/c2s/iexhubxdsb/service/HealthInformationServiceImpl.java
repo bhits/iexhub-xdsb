@@ -5,6 +5,7 @@ import gov.samhsa.acs.xdsb.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
 import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
+import gov.samhsa.c2s.iexhubxdsb.service.dto.FileExtension;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType;
@@ -15,6 +16,8 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExtrinsicObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.IdentifiableType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -60,6 +63,10 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
 
+    private static final String ROOT_ATTRIBUTE = "root";
+
+
+    @Autowired
     public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
     }
@@ -67,8 +74,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     @Override
     public PatientHealthDataDto getPatientHealthDataFromHIE(String patientId) {
-        String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
-        String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
+        final String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
+        final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
 
@@ -144,8 +151,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.info("Processing document ID=" + documentId);
 
             String mimeType = docResponse.getMimeType();
-            if (mimeType.equalsIgnoreCase("text/xml")) {
-                final String filename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + ".xml";
+            if (mimeType.equalsIgnoreCase(MediaType.TEXT_XML_VALUE)) {
+                final String filename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.XML_EXTENSION;
                 byte[] documentContents = docResponse.getDocument();
                 persistDocument(filename, documentContents);
                 Document doc = parseDocument(filename);
@@ -156,7 +163,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                     log.info("Searching for /ClinicalDocument/templateId, document ID = " + documentId);
 
                     for (int i = 0; i < nodes.getLength(); ++i) {
-                        String val = ((Element) nodes.item(i)).getAttribute("root");
+                        String val = ((Element) nodes.item(i)).getAttribute(ROOT_ATTRIBUTE);
                         if ((val != null) &&
                                 (val.compareToIgnoreCase("2.16.840.1.113883.10.20.22.1.2") == 0)) {
                             log.info("/ClinicalDocument/templateId node found, document ID=" + documentId);
@@ -173,7 +180,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                                 log.error("Unable to create a  Transformer instance" + e.getMessage());
                             }
 
-                            final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + ".json";
+                            final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.JSON_EXTENSION;
                             File jsonFile = new File(jsonFilename);
                             try {
                                 FileOutputStream jsonFileOutStream = new FileOutputStream(jsonFile);
