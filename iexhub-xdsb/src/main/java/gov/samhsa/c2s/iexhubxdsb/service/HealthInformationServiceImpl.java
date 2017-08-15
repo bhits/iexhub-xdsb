@@ -1,6 +1,6 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import gov.samhsa.acs.xdsb.registry.common.XdsbDocumentType;
+import gov.samhsa.acs.xdsb.common.XdsbDocumentType;
 import gov.samhsa.acs.xdsb.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
 import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
@@ -290,6 +290,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                                                                        HashMap<String, String> documents) {
         List<RetrieveDocumentSetRequestType.DocumentRequest> documentRequest = new ArrayList<>();
         RetrieveDocumentSetRequestType documentSetRequest = new RetrieveDocumentSetRequestType();
+
+
 
         for (String documentId : documents.keySet()) {
             RetrieveDocumentSetRequestType.DocumentRequest tempDocumentRequest = new RetrieveDocumentSetRequestType.DocumentRequest();
