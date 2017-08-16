@@ -1,7 +1,7 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import gov.samhsa.c2s.iexhubxdsb.service.dto.ClinicalDocumentRequest;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface HealthInformationService {
     /**
@@ -13,8 +13,7 @@ public interface HealthInformationService {
 
     /**
      *
-     * @param patientId The patientId
-     * @param patientDocumentDto The patient's clinical document
+     * @param clinicalDoc The Clinical Document
      */
-    void publishPatientHealthDataToHIE(String patientId, ClinicalDocumentRequest patientDocumentDto);
+    void publishPatientHealthDataToHIE(MultipartFile clinicalDoc);
 }

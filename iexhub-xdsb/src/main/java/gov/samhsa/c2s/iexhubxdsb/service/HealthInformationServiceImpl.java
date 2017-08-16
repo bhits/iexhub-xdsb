@@ -6,11 +6,12 @@ import gov.samhsa.acs.xdsb.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
 import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.acs.xdsb.repository.wsclient.adapter.XdsbRepositoryAdapter;
+import gov.samhsa.c2s.common.marshaller.SimpleMarshallerException;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerImpl;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
-import gov.samhsa.c2s.iexhubxdsb.service.dto.ClinicalDocumentRequest;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.FileExtension;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileNotFound;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
@@ -27,6 +28,7 @@ import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -151,9 +153,30 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     @Override
-    public void publishPatientHealthDataToHIE(String patientId, ClinicalDocumentRequest patientDocumentDto) {
-        //TODO:
-        //Throw DocumentNotPublishedException in case of errors
+    public void publishPatientHealthDataToHIE(MultipartFile clinicalDoc) {
+        byte[] documentContent;
+        try {
+            // extract file content as byte array
+            documentContent = clinicalDoc.getBytes();
+        } catch (IOException e) {
+            log.error("An IOException occurred while invoking file.getBytes from inside the publishPatientHealthDataToHIE method", e);
+            throw new DocumentNotPublishedException("An error occurred while attempting to publish the document", e);
+        }
+        final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
+        final String openEmpiDomainId = iexhubXdsbProperties.getHieos().getOpenEmpiDomainId();
+
+        XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
+        client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
+        final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
+
+        try {
+            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), openEmpiDomainId, XdsbDocumentType.CLINICAL_DOCUMENT,null, null);
+        }
+        catch (SimpleMarshallerException e) {
+            log.error("A SimpleMarshallerException occurred while invoking documentRepositoryRetrieveDocumentSet", e);
+            throw new DocumentNotPublishedException("An error occurred while attempting to publish the document", e);
+        }
+
     }
 
     private String convertDocumentResponseToJSON(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {

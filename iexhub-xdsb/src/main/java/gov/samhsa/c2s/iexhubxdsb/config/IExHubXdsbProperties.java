@@ -39,6 +39,9 @@ public class IExHubXdsbProperties {
         private String xdsbRepositoryUniqueId;
 
         @NotEmpty
+        private String openEmpiDomainId;
+
+        @NotEmpty
         private String documentsOutputPath;
     }
 }
