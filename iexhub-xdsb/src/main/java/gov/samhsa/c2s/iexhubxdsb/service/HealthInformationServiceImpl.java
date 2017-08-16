@@ -170,7 +170,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
 
         try {
-            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), openEmpiDomainId, XdsbDocumentType.CLINICAL_DOCUMENT,null, null);
+            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), openEmpiDomainId, XdsbDocumentType.CLINICAL_DOCUMENT);
         }
         catch (SimpleMarshallerException e) {
             log.error("A SimpleMarshallerException occurred while invoking documentRepositoryRetrieveDocumentSet", e);
