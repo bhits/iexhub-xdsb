@@ -89,7 +89,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
         //TODO: Remove hardcoded PATIENT_ID when PIX query is ready
         //Throw PatientDataCannotBeRetrievedException in case of errors
-        final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
+        final String PATIENT_ID = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
 
         //Step 2: Using the enterprise ID, perform XDS.b Registry Operation
         final XdsbRegistryAdapter xdsbRegistryAdapter = new XdsbRegistryAdapter(new XdsbRegistryWebServiceClient(registryEndpoint));
@@ -171,7 +171,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
             String mimeType = docResponse.getMimeType();
             if (mimeType.equalsIgnoreCase(MediaType.TEXT_XML_VALUE)) {
-                final String filename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.XML_EXTENSION;
+                final String filename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.XML_EXTENSION.fileExtension();
                 byte[] documentContents = docResponse.getDocument();
                 persistDocument(filename, documentContents);
                 Document doc = parseDocument(filename);
@@ -200,7 +200,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                                 throw new FileParseException("Unable to create a  Transformer instance", e);
                             }
 
-                            final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.JSON_EXTENSION;
+                            final String jsonFilename = iexhubXdsbProperties.getHieos().getDocumentsOutputPath() + "/" + documentId + FileExtension.JSON_EXTENSION.fileExtension();
                             File jsonFile = new File(jsonFilename);
 
                             try (FileOutputStream jsonFileOutStream = new FileOutputStream(jsonFile)) {
@@ -324,29 +324,41 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
 
     private void persistDocument(String filename, byte[] documentContents) {
-        log.info("Persisting document (" + filename + ") to filesystem");
 
+        String absoluteFilePath = new File(filename).getAbsolutePath();
+        File file = new File(absoluteFilePath);
+        log.info("Persisting document (" + absoluteFilePath + ") to filesystem");
+        // if file doesn't exists, then create it
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            }
+            catch (IOException e) {
+                log.error("IOException when creating the file. " + e.getMessage());
+                throw new FileParseException("IOException when creating the file: " + absoluteFilePath, e);
+            }
+        }
 
-        File file = new File(filename);
-        try (FileOutputStream fileOutStream = new FileOutputStream(file)) {
+        try (FileOutputStream fileOutStream = new FileOutputStream(absoluteFilePath)) {
             fileOutStream.write(documentContents);
+            log.info("Successfully persisted document (" + absoluteFilePath + ") to filesystem");
         }
         catch (FileNotFoundException e) {
-            log.error("File(" + filename + ") not found. " + e.getMessage());
-            throw new FileNotFound("File(" + filename + ") not found. ", e);
+            log.error("File(" + absoluteFilePath + ") not found. " + e.getMessage());
+            throw new FileNotFound("File(" + absoluteFilePath + ") not found. ", e);
         }
         catch (IOException e) {
             log.error("IOException when writing the file. " + e.getMessage());
-            throw new FileParseException("IOException when writing the file: " + filename, e);
+            throw new FileParseException("IOException when writing to the file: " + absoluteFilePath, e);
         }
     }
 
     private Document parseDocument(String filename) {
-
+        String absoluteFilePath = new File(filename).getAbsolutePath();
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder;
         Document doc;
-        try (FileInputStream fis = new FileInputStream(filename)) {
+        try (FileInputStream fis = new FileInputStream(absoluteFilePath)) {
             dBuilder = dbFactory.newDocumentBuilder();
             doc = dBuilder.parse(fis);
         }
@@ -355,13 +367,13 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             throw new FileParseException(e);
         }
         catch (FileNotFoundException e) {
-            log.error("File(" + filename + ") not found. " + e.getMessage());
-            throw new FileNotFound("File(" + filename + ") not found. ", e);
+            log.error("File(" + absoluteFilePath + ") not found. " + e.getMessage());
+            throw new FileNotFound("File(" + absoluteFilePath + ") not found. ", e);
 
         }
         catch (IOException e) {
             log.error("IOException when parsing the file. " + e.getMessage());
-            throw new FileParseException("IOException when parsing the file: " + filename, e);
+            throw new FileParseException("IOException when parsing the file: " + absoluteFilePath, e);
         }
 
         return doc;
@@ -405,6 +417,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     private DOMSource getDOMSource(String filename) {
+        String absoluteFilePath = new File(filename).getAbsolutePath();
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         DocumentBuilder builder;
@@ -412,15 +425,15 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         Document mappedDoc;
         try {
             builder = factory.newDocumentBuilder();
-            mappedDoc = builder.parse(new File(filename));
+            mappedDoc = builder.parse(new File(absoluteFilePath));
         }
         catch (ParserConfigurationException | SAXException e) {
             log.error(e.getMessage());
-            throw new FileParseException("Error parsing the file: " + filename, e);
+            throw new FileParseException("Error parsing the file: " + absoluteFilePath, e);
         }
         catch (IOException e) {
             log.error("IOException when parsing the file: " + e.getMessage());
-            throw new FileParseException("IOException when parsing the file: " + filename, e);
+            throw new FileParseException("IOException when parsing the file: " + absoluteFilePath, e);
         }
         source = new DOMSource(mappedDoc);
         return source;
