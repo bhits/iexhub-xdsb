@@ -8,6 +8,7 @@ import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.acs.xdsb.repository.wsclient.adapter.XdsbRepositoryAdapter;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerImpl;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
+import gov.samhsa.c2s.iexhubxdsb.service.dto.ClinicalDocumentRequest;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.FileExtension;
 import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileNotFound;
@@ -53,7 +54,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -87,7 +88,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
         //TODO: Remove hardcoded PATIENT_ID when PIX query is ready
-        final String PATIENT_ID = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
+        final String PATIENT_ID = "ac4afda28f60407^^^&1.3.6.1.4.1.21367.2005.3.7&ISO";
 
         //Step 2: Using the enterprise ID, perform XDS.b Registry Operation
         final XdsbRegistryAdapter xdsbRegistryAdapter = new XdsbRegistryAdapter(new XdsbRegistryWebServiceClient(registryEndpoint));
@@ -127,7 +128,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             }
             //Step 4: Using the Document IDs, perform XDS.d Repository call
             XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
-            client.setOutInterceptors(Arrays.asList(new ContentTypeRebuildingOutboundSoapInterceptor()));
+            client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
             final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
             RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getHieos().getXdsbRepositoryUniqueId(), documents);
 
@@ -146,6 +147,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         //Todo: Convert json to DTO
         return patientHealthData;
+    }
+
+    @Override
+    public void publishPatientHealthDataToHIE(String patientId, ClinicalDocumentRequest patientDocumentDto) {
+        //TODO:
     }
 
     private String convertDocumentResponseToJSON(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
