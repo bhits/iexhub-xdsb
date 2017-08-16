@@ -158,6 +158,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         try {
             // extract file content as byte array
             documentContent = clinicalDoc.getBytes();
+            log.info("Converted file to byte array.");
         } catch (IOException e) {
             log.error("An IOException occurred while invoking file.getBytes from inside the publishPatientHealthDataToHIE method", e);
             throw new DocumentNotPublishedException("An error occurred while attempting to publish the document", e);
@@ -170,7 +171,9 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
 
         try {
+            log.info("Calling XdsB Repository");
             xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), openEmpiDomainId, XdsbDocumentType.CLINICAL_DOCUMENT);
+            log.info("Call to XdsB Repository was successful. Successfully published the document to HIE.");
         }
         catch (SimpleMarshallerException e) {
             log.error("A SimpleMarshallerException occurred while invoking documentRepositoryRetrieveDocumentSet", e);
