@@ -10,11 +10,9 @@ import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverter;
 import gov.samhsa.c2s.common.document.transformer.XmlTransformer;
-import gov.samhsa.c2s.common.document.transformer.XmlTransformerImpl;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerException;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerImpl;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
-import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
@@ -55,6 +53,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     private DocumentXmlConverter documentXmlConverter;
 
+    private XmlTransformer xmlTransformer;
+
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
 
     private static final String NODE_ATTRIBUTE_NAME = "root";
@@ -65,10 +65,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
 
     @Autowired
-    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter) {
+    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter, XmlTransformer xmlTransformer) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
         this.documentAccessor = documentAccessor;
         this.documentXmlConverter = documentXmlConverter;
+        this.xmlTransformer = xmlTransformer;
     }
 
 
@@ -76,7 +77,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     public String getPatientHealthDataFromHIE(String patientId) {
         final String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
         final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
-        PatientHealthDataDto patientHealthData = new PatientHealthDataDto();
         String jsonOutput;
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
@@ -196,7 +196,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                                 .collect(Collectors.toList());
 
                         if (selectedNodes.size() > 0) {
-                            XmlTransformer xmlTransformer = new XmlTransformerImpl(new SimpleMarshallerImpl());
+
                             String transformedDocument = xmlTransformer.transform(
                                     document, new ClassPathResource(CDAToJsonXSL).getURI().toString(),
                                     Optional.empty(), Optional.empty());

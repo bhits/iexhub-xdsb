@@ -4,6 +4,8 @@ import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorImpl;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverter;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverterImpl;
+import gov.samhsa.c2s.common.document.transformer.XmlTransformer;
+import gov.samhsa.c2s.common.document.transformer.XmlTransformerImpl;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshaller;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerImpl;
 import org.springframework.context.annotation.Bean;
@@ -25,5 +27,8 @@ public class ApplicationContextConfig {
     public DocumentAccessor documentAccessor() {
         return new DocumentAccessorImpl();
     }
+
+    @Bean
+    public XmlTransformer xmlTransformer() {return new XmlTransformerImpl(new SimpleMarshallerImpl());}
 
 }
