@@ -73,7 +73,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
 
     @Override
-    public PatientHealthDataDto getPatientHealthDataFromHIE(String patientId) {
+    public String getPatientHealthDataFromHIE(String patientId) {
         final String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
         final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
         PatientHealthDataDto patientHealthData = new PatientHealthDataDto();
@@ -138,9 +138,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 throw new NoDocumentsFoundException("Retrieve Document Set transaction found no documents for the given Patient ID");
             }
         }
-
-        //Todo: Convert json to DTO
-        return patientHealthData;
+        return jsonOutput;
     }
 
     @Override
@@ -178,13 +176,9 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     private String convertDocumentResponseToJSON(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
         StringBuilder jsonOutput = new StringBuilder();
         jsonOutput.append("{\"Documents\":[");
-        boolean first = true;
+        boolean firstDocument = true;
 
         for (RetrieveDocumentSetResponseType.DocumentResponse docResponse : documentResponseList) {
-            if (!first) {
-                jsonOutput.append(",");
-            }
-            first = false;
             String documentId = docResponse.getDocumentUniqueId();
             log.debug("Processing document ID: " + documentId);
 
@@ -206,6 +200,12 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                             String transformedDocument = xmlTransformer.transform(
                                     document, new ClassPathResource(CDAToJsonXSL).getURI().toString(),
                                     Optional.empty(), Optional.empty());
+
+                            if (!firstDocument) {
+                                jsonOutput.append(",");
+                            }
+                            firstDocument = false;
+
                             jsonOutput.append(transformedDocument);
                         } else {
                             log.debug("Document(" + documentId + ") retrieved doesn't match required template ID.");

@@ -1,7 +1,7 @@
 package gov.samhsa.c2s.iexhubxdsb.web;
 
 import gov.samhsa.c2s.iexhubxdsb.service.HealthInformationService;
-import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,8 +19,8 @@ public class HealthInformationRestController {
         this.healthInfoService = healthInfoService;
     }
 
-    @GetMapping("/{patientId}/health-information")
-    public PatientHealthDataDto getPatientHealthDataFromHIE(@PathVariable String patientId) {
+    @GetMapping(value = "/{patientId}/health-information", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public String getPatientHealthDataFromHIE(@PathVariable String patientId) {
         return healthInfoService.getPatientHealthDataFromHIE(patientId);
     }
 

@@ -1,15 +1,14 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import gov.samhsa.c2s.iexhubxdsb.service.dto.PatientHealthDataDto;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface HealthInformationService {
     /**
      *
-     * @param patientId The patientId
-     * @return
+     * @param patientId The Patient ID (C2S MRN)
+     * @return List of Documents as a JSON string
      */
-    PatientHealthDataDto getPatientHealthDataFromHIE(String patientId);
+    String getPatientHealthDataFromHIE(String patientId);
 
     /**
      *
