@@ -40,8 +40,5 @@ public class IExHubXdsbProperties {
 
         @NotEmpty
         private String openEmpiDomainId;
-
-        @NotEmpty
-        private String documentsOutputPath;
     }
 }
