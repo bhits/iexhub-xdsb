@@ -4,7 +4,7 @@
   Version 1.0 : Create JSON for HL7 markup
   Version 2.0: Create HML for Section.content
 -->
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
     xmlns:n1="urn:hl7-org:v3" xmlns:in="urn:inline-variable-data" >
     <xsl:output method="html" omit-xml-declaration="yes" indent="no"/>
 
