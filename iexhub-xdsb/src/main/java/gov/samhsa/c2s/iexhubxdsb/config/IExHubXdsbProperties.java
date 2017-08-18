@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.NotEmpty;
+import org.hibernate.validator.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,16 +29,16 @@ public class IExHubXdsbProperties {
         @NotNull
         private boolean enabled;
 
-        @NotEmpty
+        @NotBlank
         private String xdsbRegistryEndpointURI;
 
-        @NotEmpty
+        @NotBlank
         private String xdsbRepositoryEndpointURI;
 
-        @NotEmpty
+        @NotBlank
         private String xdsbRepositoryUniqueId;
 
-        @NotEmpty
+        @NotBlank
         private String homeCommunityId;
     }
 }
