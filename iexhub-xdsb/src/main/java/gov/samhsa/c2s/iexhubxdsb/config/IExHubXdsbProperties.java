@@ -18,13 +18,13 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 public class IExHubXdsbProperties {
     @NotNull
-    private Hieos hieos;
+    private Xdsb xdsb;
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class Hieos {
+    public static class Xdsb {
 
         @NotNull
         private boolean enabled;
@@ -39,6 +39,6 @@ public class IExHubXdsbProperties {
         private String xdsbRepositoryUniqueId;
 
         @NotEmpty
-        private String openEmpiDomainId;
+        private String homeCommunityId;
     }
 }

@@ -1,17 +1,13 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import gov.samhsa.acs.common.cxf.ContentTypeRebuildingOutboundSoapInterceptor;
 import gov.samhsa.acs.xdsb.common.XdsbDocumentType;
-import gov.samhsa.acs.xdsb.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
-import gov.samhsa.acs.xdsb.repository.wsclient.XdsbRepositoryWebServiceClient;
 import gov.samhsa.acs.xdsb.repository.wsclient.adapter.XdsbRepositoryAdapter;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverter;
 import gov.samhsa.c2s.common.document.transformer.XmlTransformer;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerException;
-import gov.samhsa.c2s.common.marshaller.SimpleMarshallerImpl;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
@@ -37,7 +33,6 @@ import org.w3c.dom.Node;
 import javax.xml.bind.JAXBElement;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +50,10 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
     private XmlTransformer xmlTransformer;
 
+    private XdsbRegistryAdapter xdsbRegistryAdapter;
+
+    private XdsbRepositoryAdapter xdsbRepositoryAdapter;
+
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
 
     private static final String NODE_ATTRIBUTE_NAME = "root";
@@ -65,18 +64,18 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
 
     @Autowired
-    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter, XmlTransformer xmlTransformer) {
+    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter, XmlTransformer xmlTransformer, XdsbRegistryAdapter xdsbRegistryAdapter, XdsbRepositoryAdapter xdsbRepositoryAdapter) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
         this.documentAccessor = documentAccessor;
         this.documentXmlConverter = documentXmlConverter;
         this.xmlTransformer = xmlTransformer;
+        this.xdsbRegistryAdapter = xdsbRegistryAdapter;
+        this.xdsbRepositoryAdapter = xdsbRepositoryAdapter;
     }
 
 
     @Override
     public String getPatientHealthDataFromHIE(String patientId) {
-        final String registryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRegistryEndpointURI();
-        final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
         String jsonOutput;
 
         //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
@@ -85,7 +84,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         final String PATIENT_ID = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
 
         //Step 2: Using the enterprise ID, perform XDS.b Registry Operation
-        final XdsbRegistryAdapter xdsbRegistryAdapter = new XdsbRegistryAdapter(new XdsbRegistryWebServiceClient(registryEndpoint));
         log.info("Calling XdsB Registry");
         AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(PATIENT_ID, XdsbDocumentType.CLINICAL_DOCUMENT);
 
@@ -121,10 +119,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID");
             }
             //Step 4: Using the Document IDs, perform XDS.d Repository call
-            XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
-            client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
-            final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
-            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getHieos().getXdsbRepositoryUniqueId(), documents);
+            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getXdsb().getXdsbRepositoryUniqueId(), documents);
 
             log.info("Calling XdsB Repository");
             RetrieveDocumentSetResponseType retrieveDocumentSetResponse = xdsbRepositoryAdapter.retrieveDocumentSet(documentSetRequest);
@@ -154,16 +149,10 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.error("An IOException occurred while invoking file.getBytes from inside the publishPatientHealthDataToHIE method", e);
             throw new DocumentNotPublishedException("An error occurred while attempting to publish the document", e);
         }
-        final String repositoryEndpoint = iexhubXdsbProperties.getHieos().getXdsbRepositoryEndpointURI();
-        final String openEmpiDomainId = iexhubXdsbProperties.getHieos().getOpenEmpiDomainId();
-
-        XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(repositoryEndpoint);
-        client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
-        final XdsbRepositoryAdapter xdsbRepositoryAdapter = new XdsbRepositoryAdapter(client, new SimpleMarshallerImpl());
 
         try {
             log.info("Calling XdsB Repository");
-            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), openEmpiDomainId, XdsbDocumentType.CLINICAL_DOCUMENT);
+            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), iexhubXdsbProperties.getXdsb().getHomeCommunityId(), XdsbDocumentType.CLINICAL_DOCUMENT);
             log.info("Call to XdsB Repository was successful. Successfully published the document to HIE.");
         }
         catch (SimpleMarshallerException e) {
@@ -240,12 +229,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         for (JAXBElement identifiable : documentObjects) {
             if (identifiable.getValue() instanceof ExtrinsicObjectType) {
-                //Check if "home" attribute is present
+                //Set HomeCommunityId from the response
                 String home = (((ExtrinsicObjectType) identifiable.getValue()).getHome() != null) ? ((ExtrinsicObjectType) identifiable.getValue()).getHome() : null;
 
                 List<ExternalIdentifierType> externalIdentifiers = ((ExtrinsicObjectType) identifiable.getValue()).getExternalIdentifier();
 
-                // Find the ExternalIdentifier that has the "XDSDocumentEntry.uniqueId" value...
                 String uniqueId = null;
                 for (ExternalIdentifierType externalIdentifier : externalIdentifiers) {
 

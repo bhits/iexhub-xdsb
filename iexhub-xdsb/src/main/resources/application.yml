@@ -9,13 +9,13 @@ ribbon:
 hystrix.command.default.execution.timeout.enabled: false
 c2s:
   iexhub-xdsb:
-    hieos:
+    xdsb:
       enabled: true
-      # configure HIEOS specific information
+      # Configure XDS.b Server specific information
       xdsbRegistryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsregistryb
       xdsbRepositoryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsrepositoryb
       xdsbRepositoryUniqueId: 1.3.6.1.4.1.21367.2010.1.2.1040
-      openEmpiDomainId: 2.16.840.1.113883.4.357
+      homeCommunityId: 2.16.840.1.113883.4.357
       clientSocketTimeoutInMs: 768000
 ---
 spring.profiles: standalone-ssl

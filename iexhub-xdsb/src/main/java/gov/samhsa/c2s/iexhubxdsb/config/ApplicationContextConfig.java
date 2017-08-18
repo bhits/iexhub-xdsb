@@ -29,6 +29,8 @@ public class ApplicationContextConfig {
     }
 
     @Bean
-    public XmlTransformer xmlTransformer() {return new XmlTransformerImpl(new SimpleMarshallerImpl());}
+    public XmlTransformer xmlTransformer() {
+        return new XmlTransformerImpl(simpleMarshaller());
+    }
 
 }
