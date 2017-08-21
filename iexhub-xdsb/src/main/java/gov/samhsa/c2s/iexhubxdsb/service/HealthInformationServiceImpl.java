@@ -1,13 +1,13 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import gov.samhsa.acs.xdsb.common.XdsbDocumentType;
-import gov.samhsa.acs.xdsb.registry.wsclient.adapter.XdsbRegistryAdapter;
-import gov.samhsa.acs.xdsb.repository.wsclient.adapter.XdsbRepositoryAdapter;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverter;
 import gov.samhsa.c2s.common.document.transformer.XmlTransformer;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshallerException;
+import gov.samhsa.c2s.common.xdsbclient.XdsbDocumentType;
+import gov.samhsa.c2s.common.xdsbclient.registry.wsclient.adapter.XdsbRegistryAdapter;
+import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.adapter.XdsbRepositoryAdapter;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
