@@ -96,15 +96,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         //Check for errors
         if ((adhocQueryResponse.getRegistryErrorList() != null) &&
                 (adhocQueryResponse.getRegistryErrorList().getRegistryError().size() > 0)) {
-            log.info("Call to XdsB registry returned an error");
-            log.error("Printing error messages");
-            for (RegistryError error : adhocQueryResponse.getRegistryErrorList().getRegistryError()) {
-                log.error("Error Code: ", error.getErrorCode());
-                log.error("Error Code Context: ", error.getCodeContext());
-                log.error("Error Location: ", error.getLocation());
-                log.error("Error Severity: ", error.getSeverity());
-                log.error("Error Value: ", error.getValue());
-            }
+            logErrorMessages(adhocQueryResponse.getRegistryErrorList().getRegistryError());
             throw new XdsbRegistryException("Call to XdsB registry returned an error. Check iexhub-xdsb.log for details.");
         }
         log.info("XdsB Registry call was successful");
@@ -295,6 +287,18 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         documentSetRequest.getDocumentRequest().addAll(documentRequest);
         return documentSetRequest;
+    }
+
+    private void logErrorMessages(List<oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError> errorList){
+        log.info("Call to XdsB registry returned an error");
+        log.error("Printing error messages");
+        for (RegistryError error : errorList) {
+            log.error("Error Code: ", error.getErrorCode());
+            log.error("Error Code Context: ", error.getCodeContext());
+            log.error("Error Location: ", error.getLocation());
+            log.error("Error Severity: ", error.getSeverity());
+            log.error("Error Value: ", error.getValue());
+        }
     }
 
     private IdentifierSystemDto getPatientIdentifier(String patientId){
