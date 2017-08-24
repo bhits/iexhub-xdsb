@@ -1,6 +1,5 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
-import com.netflix.hystrix.exception.HystrixRuntimeException;
 import feign.FeignException;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
@@ -83,7 +82,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         String jsonOutput;
 
         //Use PatientId to perform a PIX Query to get the enterprise ID
-        IdentifierSystemDto identifier =  getPatientIdentifier(patientId);
+        IdentifierSystemDto identifier = getPatientIdentifier(patientId);
         //String enterprisePatientId = getEnterprisePatientId(String mrn, String identifier.getOid());
 
         //TODO: Remove hardcoded enterprisePatientId when PIX query is ready
@@ -289,7 +288,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         return documentSetRequest;
     }
 
-    private void logErrorMessages(List<oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError> errorList){
+    private void logErrorMessages(List<oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError> errorList) {
         log.info("Call to XdsB registry returned an error");
         log.error("Printing error messages");
         for (RegistryError error : errorList) {
@@ -301,58 +300,40 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
     }
 
-    private IdentifierSystemDto getPatientIdentifier(String patientId){
+    private IdentifierSystemDto getPatientIdentifier(String patientId) {
         log.info("Fetching Patient MRN Identifier System from UMS...");
-        try{
+        try {
             //patientId is MRN, not Patient.id
             IdentifierSystemDto identifier = umsClient.getPatientMrnIdentifierSystemByPatientId(patientId);
             log.info("Found Patient MRN Identifier System from UMS");
             return identifier;
-        }catch (HystrixRuntimeException hystrixErr) {
-            Throwable causedBy = hystrixErr.getCause();
-
-            if (!(causedBy instanceof FeignException)) {
-                log.error("Unexpected instance of HystrixRuntimeException has occurred", hystrixErr);
-                throw new UmsClientException("An unknown error occurred while attempting to communicate with UMS service");
-            }
-
-            int causedByStatus = ((FeignException) causedBy).status();
-
-            switch (causedByStatus) {
-                case 404:
-                    log.error("UMS client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", causedBy);
-                    throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
-                default:
-                    log.error("UMS client returned an unexpected instance of FeignException", causedBy);
-                    throw new UmsClientException("An unknown error occurred while attempting to communicate with UMS");
+        }
+        catch (FeignException fe) {
+            if (fe.status() == 404) {
+                log.error("UMS client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", fe);
+                throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
+            } else {
+                log.error("UMS client returned an unexpected instance of FeignException", fe);
+                throw new UmsClientException("An unknown error occurred while attempting to communicate with UMS");
             }
         }
     }
 
-    private String getEnterprisePatientId(String patientId, String oid){
+    private String getEnterprisePatientId(String patientId, String oid) {
         log.info("Fetching Patient EnterpriseId from IExHubPixPdq...");
-        try{
+        try {
             //patientId is MRN, not Patient.id
             String enterprisePatientId = iexhubPixPdqClient.getPatientEnterpriseId(patientId, oid);
             log.info("Found Patient EnterpriseId from IExHubPixPdq.");
             return enterprisePatientId;
-        }catch (HystrixRuntimeException hystrixErr) {
-            Throwable causedBy = hystrixErr.getCause();
-
-            if (!(causedBy instanceof FeignException)) {
-                log.error("Unexpected instance of HystrixRuntimeException has occurred", hystrixErr);
-                throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq service");
-            }
-
-            int causedByStatus = ((FeignException) causedBy).status();
-
-            switch (causedByStatus) {
-                case 404:
-                    log.error("IExHubPixPdq client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", causedBy);
-                    throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
-                default:
-                    log.error("IExHubPixPdq client returned an unexpected instance of FeignException", causedBy);
-                    throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq");
+        }
+        catch (FeignException fe) {
+            if (fe.status() == 404) {
+                log.error("IExHubPixPdq client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", fe);
+                throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
+            } else {
+                log.error("IExHubPixPdq client returned an unexpected instance of FeignException", fe);
+                throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq");
             }
         }
     }
