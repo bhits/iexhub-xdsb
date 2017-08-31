@@ -86,7 +86,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         IdentifierSystemDto identifier = getPatientIdentifier(patientId);
 
         String oId = identifier.getOid();
-        if(identifier.getOid().toLowerCase().contains("urn:oid:")){
+        if (identifier.getOid().toLowerCase().contains("urn:oid:")) {
             oId = StringUtils.substringAfter(oId, "urn:oid:");
         }
 
