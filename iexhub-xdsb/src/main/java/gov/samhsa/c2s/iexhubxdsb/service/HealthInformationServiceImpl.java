@@ -29,6 +29,7 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.ExtrinsicObjectType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.IdentifiableType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -81,12 +82,17 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     public String getPatientHealthDataFromHIE(String patientId) {
         String jsonOutput;
 
-        //Use PatientId to perform a PIX Query to get the enterprise ID
+        //Use PatientId to get Oid from UMS
         IdentifierSystemDto identifier = getPatientIdentifier(patientId);
-        //String enterprisePatientId = getEnterprisePatientId(String mrn, String identifier.getOid());
 
-        //TODO: Remove hardcoded enterprisePatientId when PIX query is ready
-        final String enterprisePatientId = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
+        String oId = identifier.getOid();
+        if (identifier.getOid().toLowerCase().contains("urn:oid:")) {
+            oId = StringUtils.substringAfter(oId, "urn:oid:");
+        }
+
+        //Execute PIX Query to get the enterprise ID
+        //EnterpriseId is in the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
+        String enterprisePatientId = getEnterprisePatientId(patientId, oId);
 
         //Perform XDS.b Registry Operation
         log.info("Calling XdsB Registry");

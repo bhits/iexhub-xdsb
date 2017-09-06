@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 @FeignClient("iexhub-pix-pdq")
 public interface IExHubPixPdqClient {
-    //TODO: Replace with actual endpoint
-    @RequestMapping(value = "/patients/{patientId}/mrn-identifier-system", method = RequestMethod.GET)
-    String getPatientEnterpriseId(@PathVariable("patientId") String patientId, String oid);
+    @RequestMapping(value = "/patients/{patientId}/mrn-oid/{patientMrnOid}/enterprise-id", method = RequestMethod.GET)
+    String getPatientEnterpriseId(@PathVariable("patientId") String patientId,  @PathVariable("patientMrnOid") String patientMrnOid);
 }
