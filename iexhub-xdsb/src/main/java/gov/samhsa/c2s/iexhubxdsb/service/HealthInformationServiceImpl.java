@@ -1,5 +1,6 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
+import feign.FeignException;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
 import gov.samhsa.c2s.common.document.converter.DocumentXmlConverter;
@@ -9,9 +10,15 @@ import gov.samhsa.c2s.common.xdsbclient.XdsbDocumentType;
 import gov.samhsa.c2s.common.xdsbclient.registry.wsclient.adapter.XdsbRegistryAdapter;
 import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.adapter.XdsbRepositoryAdapter;
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.IExHubPixPdqClient;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.UmsClient;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.IdentifierSystemDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.IExHubPixPdqClientException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.PatientDataCannotBeRetrievedException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.UmsClientException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.XdsbRegistryException;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType;
@@ -43,29 +50,25 @@ import java.util.stream.Collectors;
 public class HealthInformationServiceImpl implements HealthInformationService {
 
     private final IExHubXdsbProperties iexhubXdsbProperties;
-
+    private final UmsClient umsClient;
+    private final IExHubPixPdqClient iexhubPixPdqClient;
     private DocumentAccessor documentAccessor;
-
     private DocumentXmlConverter documentXmlConverter;
-
     private XmlTransformer xmlTransformer;
-
     private XdsbRegistryAdapter xdsbRegistryAdapter;
-
     private XdsbRepositoryAdapter xdsbRepositoryAdapter;
 
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
-
     private static final String NODE_ATTRIBUTE_NAME = "root";
-
     private static final String CCD_TEMPLATE_ID_ROOT_VALUE = "2.16.840.1.113883.10.20.22.1.2";
-
     private static final String XPATH_EVALUATION_EXPRESSION = "/hl7:ClinicalDocument/hl7:templateId";
 
 
     @Autowired
-    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter, XmlTransformer xmlTransformer, XdsbRegistryAdapter xdsbRegistryAdapter, XdsbRepositoryAdapter xdsbRepositoryAdapter) {
+    public HealthInformationServiceImpl(IExHubXdsbProperties iexhubXdsbProperties, UmsClient umsClient, IExHubPixPdqClient iexhubPixPdqClient, DocumentAccessor documentAccessor, DocumentXmlConverter documentXmlConverter, XmlTransformer xmlTransformer, XdsbRegistryAdapter xdsbRegistryAdapter, XdsbRepositoryAdapter xdsbRepositoryAdapter) {
         this.iexhubXdsbProperties = iexhubXdsbProperties;
+        this.umsClient = umsClient;
+        this.iexhubPixPdqClient = iexhubPixPdqClient;
         this.documentAccessor = documentAccessor;
         this.documentXmlConverter = documentXmlConverter;
         this.xmlTransformer = xmlTransformer;
@@ -78,32 +81,25 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     public String getPatientHealthDataFromHIE(String patientId) {
         String jsonOutput;
 
-        //Step 1: Use PatientId to perform a PIX Query to get the enterprise ID
-        //TODO: Remove hardcoded PATIENT_ID when PIX query is ready
-        //Throw PatientDataCannotBeRetrievedException in case of errors
-        final String PATIENT_ID = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
+        //Use PatientId to perform a PIX Query to get the enterprise ID
+        IdentifierSystemDto identifier = getPatientIdentifier(patientId);
+        //String enterprisePatientId = getEnterprisePatientId(String mrn, String identifier.getOid());
 
-        //Step 2: Using the enterprise ID, perform XDS.b Registry Operation
+        //TODO: Remove hardcoded enterprisePatientId when PIX query is ready
+        final String enterprisePatientId = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
+
+        //Perform XDS.b Registry Operation
         log.info("Calling XdsB Registry");
-        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(PATIENT_ID, XdsbDocumentType.CLINICAL_DOCUMENT);
+        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(enterprisePatientId, XdsbDocumentType.CLINICAL_DOCUMENT);
 
         //Check for errors
         if ((adhocQueryResponse.getRegistryErrorList() != null) &&
                 (adhocQueryResponse.getRegistryErrorList().getRegistryError().size() > 0)) {
-            log.info("Call to XdsB registry returned an error");
-            log.error("Printing error messages");
-            for (RegistryError error : adhocQueryResponse.getRegistryErrorList().getRegistryError()) {
-                log.error("Error Code: ", error.getErrorCode());
-                log.error("Error Code Context: ", error.getCodeContext());
-                log.error("Error Location: ", error.getLocation());
-                log.error("Error Severity: ", error.getSeverity());
-                log.error("Error Value: ", error.getValue());
-            }
+            logErrorMessages(adhocQueryResponse.getRegistryErrorList().getRegistryError());
             throw new XdsbRegistryException("Call to XdsB registry returned an error. Check iexhub-xdsb.log for details.");
         }
         log.info("XdsB Registry call was successful");
 
-        //Step 3: From AdhocQuery Response, extract the document IDs
         List<JAXBElement<? extends IdentifiableType>> documentObjects = adhocQueryResponse.getRegistryObjectList().getIdentifiable();
 
         if ((documentObjects == null) ||
@@ -118,14 +114,14 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 log.info("No XDSDocumentEntry documents found for the given Patient ID");
                 throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID");
             }
-            //Step 4: Using the Document IDs, perform XDS.d Repository call
+            //Perform XDS.b Repository call
             RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getXdsb().getXdsbRepositoryUniqueId(), documents);
 
             log.info("Calling XdsB Repository");
             RetrieveDocumentSetResponseType retrieveDocumentSetResponse = xdsbRepositoryAdapter.retrieveDocumentSet(documentSetRequest);
             log.info("Call to XdsB Repository was successful");
 
-            //Step 5: Convert the obtained documents into JSON format
+            //Convert the obtained documents into JSON format
             if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
                 jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
             } else {
@@ -229,7 +225,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         for (JAXBElement identifiable : documentObjects) {
             if (identifiable.getValue() instanceof ExtrinsicObjectType) {
-                //Set HomeCommunityId from the response
                 String home = (((ExtrinsicObjectType) identifiable.getValue()).getHome() != null) ? ((ExtrinsicObjectType) identifiable.getValue()).getHome() : null;
 
                 List<ExternalIdentifierType> externalIdentifiers = ((ExtrinsicObjectType) identifiable.getValue()).getExternalIdentifier();
@@ -284,7 +279,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             tempDocumentRequest.setRepositoryUniqueId(repositoryUniqueId);
 
             if (documents.get(documentId) != null) {
-                //HomeCommunityId is present
                 tempDocumentRequest.setHomeCommunityId(documents.get(documentId));
             }
             documentRequest.add(tempDocumentRequest);
@@ -293,4 +287,56 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         documentSetRequest.getDocumentRequest().addAll(documentRequest);
         return documentSetRequest;
     }
+
+    private void logErrorMessages(List<oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError> errorList) {
+        log.info("Call to XdsB registry returned an error");
+        log.error("Printing error messages");
+        for (RegistryError error : errorList) {
+            log.error("Error Code: ", error.getErrorCode());
+            log.error("Error Code Context: ", error.getCodeContext());
+            log.error("Error Location: ", error.getLocation());
+            log.error("Error Severity: ", error.getSeverity());
+            log.error("Error Value: ", error.getValue());
+        }
+    }
+
+    private IdentifierSystemDto getPatientIdentifier(String patientId) {
+        log.info("Fetching Patient MRN Identifier System from UMS...");
+        try {
+            //patientId is MRN, not Patient.id
+            IdentifierSystemDto identifier = umsClient.getPatientMrnIdentifierSystemByPatientId(patientId);
+            log.info("Found Patient MRN Identifier System from UMS");
+            return identifier;
+        }
+        catch (FeignException fe) {
+            if (fe.status() == 404) {
+                log.error("UMS client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", fe);
+                throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
+            } else {
+                log.error("UMS client returned an unexpected instance of FeignException", fe);
+                throw new UmsClientException("An unknown error occurred while attempting to communicate with UMS");
+            }
+        }
+    }
+
+    private String getEnterprisePatientId(String patientId, String oid) {
+        log.info("Fetching Patient EnterpriseId from IExHubPixPdq...");
+        try {
+            //patientId is MRN, not Patient.id
+            String enterprisePatientId = iexhubPixPdqClient.getPatientEnterpriseId(patientId, oid);
+            log.info("Found Patient EnterpriseId from IExHubPixPdq.");
+            return enterprisePatientId;
+        }
+        catch (FeignException fe) {
+            if (fe.status() == 404) {
+                log.error("IExHubPixPdq client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", fe);
+                throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
+            } else {
+                log.error("IExHubPixPdq client returned an unexpected instance of FeignException", fe);
+                throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq");
+            }
+        }
+    }
+
+
 }
