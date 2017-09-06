@@ -91,9 +91,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
 
         //Execute PIX Query to get the enterprise ID
+        //EnterpriseId is in the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
         String enterprisePatientId = getEnterprisePatientId(patientId, oId);
-
-        //final String enterprisePatientId = "d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO";
 
         //Perform XDS.b Registry Operation
         log.info("Calling XdsB Registry");
