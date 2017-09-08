@@ -51,8 +51,11 @@
         <java.version>1.8</java.version>
         <spring-cloud.version>Dalston.SR3</spring-cloud.version>
         <docker.maven.version>0.4.13</docker.maven.version>
-        <c2s.common-libraries.version>1.15.0</c2s.common-libraries.version>
+
         <c2s.common-libraries.xdsb.version>0.1.0</c2s.common-libraries.xdsb.version>
+        <c2s.document-transformer.version>1.16.0</c2s.document-transformer.version>
+        <c2s.document-accessor.version>1.16.0</c2s.document-accessor.version>
+        <c2s.document-converter.version>1.16.0</c2s.document-converter.version>
         <!-- Third-party library versions -->
         <saxon-HE.version>9.8.0-3</saxon-HE.version>
         <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
@@ -116,17 +119,17 @@
         <dependency>
             <groupId>gov.samhsa.c2s</groupId>
             <artifactId>document-transformer</artifactId>
-            <version>${c2s.common-libraries.version}</version>
+            <version>${c2s.document-transformer.version}</version>
         </dependency>
         <dependency>
             <groupId>gov.samhsa.c2s</groupId>
             <artifactId>document-accessor</artifactId>
-            <version>${c2s.common-libraries.version}</version>
+            <version>${c2s.document-accessor.version}</version>
         </dependency>
         <dependency>
             <groupId>gov.samhsa.c2s</groupId>
             <artifactId>document-converter</artifactId>
-            <version>${c2s.common-libraries.version}</version>
+            <version>${c2s.document-converter.version}</version>
         </dependency>
     </dependencies>
 
