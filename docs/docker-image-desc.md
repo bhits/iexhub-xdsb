@@ -6,7 +6,7 @@ The IExHub XDS.b provides RESTful endpoints to facilitate information exchange t
 
 # Supported Source Code Tags and Current `Dockerfile` Link
 
-[`0.0.1 (latest)`](https://github.com/bhits-dev/iexhub-xdsb/releases/tag/0.0.1)
+[`0.1.0 (latest)`](https://github.com/bhits-dev/iexhub-xdsb/releases/tag/0.1.0)
 
 [`Current Dockerfile`](../iexhub-xdsb/src/main/docker/Dockerfile)
 
