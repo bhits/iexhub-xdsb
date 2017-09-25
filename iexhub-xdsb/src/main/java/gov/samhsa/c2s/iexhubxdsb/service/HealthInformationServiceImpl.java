@@ -12,6 +12,7 @@ import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.adapter.XdsbReposito
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.IExHubPixPdqClient;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.UmsClient;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.IdentifierSystemDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
@@ -81,8 +82,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     @Override
     public String getPatientHealthDataFromHIE(String patientId) {
         String jsonOutput;
-
-        //Use PatientId to get Oid from UMS
+        String searchByPatientId;
+        //Use PatientId to get local Oid from UMS
         IdentifierSystemDto identifier = getPatientIdentifier(patientId);
 
         String oId = identifier.getOid();
@@ -90,12 +91,16 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             oId = StringUtils.substringAfter(oId, "urn:oid:");
         }
 
-        //Convert patientId to the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
-        String c2sPatientId = patientId + "^^^&" + oId + "&ISO";
+        if(iexhubXdsbProperties.getXdsb().isGetHealthDataBasedOnEnterpriseId()){
+            PatientIdentifierDto patientEnterpriseId = getEnterprisePatientId(patientId, oId);
+            searchByPatientId = patientEnterpriseId.getPatientId() + "^^^&" + patientEnterpriseId.getIdentifier() + "&" + patientEnterpriseId.getIdentifierType();
+        } else {
+            //Convert patientId to the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
+            searchByPatientId = patientId + "^^^&" + oId + "&" + "ISO";
+        }
 
-        //Perform XDS.b Registry Operation using c2sPatientId
         log.info("Calling XdsB Registry");
-        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(c2sPatientId, XdsbDocumentType.CLINICAL_DOCUMENT);
+        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(searchByPatientId, XdsbDocumentType.CLINICAL_DOCUMENT);
 
         //Check for errors
         if ((adhocQueryResponse.getRegistryErrorList() != null) &&
@@ -321,6 +326,25 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             } else {
                 log.error("UMS client returned an unexpected instance of FeignException", fe);
                 throw new UmsClientException("An unknown error occurred while attempting to communicate with UMS");
+            }
+        }
+    }
+
+    private PatientIdentifierDto getEnterprisePatientId(String patientId, String oid) {
+        log.info("Fetching Patient EnterpriseId from IExHubPixPdq...");
+        try {
+            //patientId is MRN, not Patient.id
+            PatientIdentifierDto enterprisePatientId = iexhubPixPdqClient.getPatientEnterpriseId(patientId, oid);
+            log.info("Found Patient EnterpriseId from IExHubPixPdq.");
+            return enterprisePatientId;
+        }
+        catch (FeignException fe) {
+            if (fe.status() == 404) {
+                log.error("IExHubPixPdq client returned a 404 - NOT FOUND status, indicating no patient was found for the specified patientMrn", fe);
+                throw new PatientDataCannotBeRetrievedException("No patient was found for the specified patientID(MRN)");
+            } else {
+                log.error("IExHubPixPdq client returned an unexpected instance of FeignException", fe);
+                throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq");
             }
         }
     }

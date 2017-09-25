@@ -40,5 +40,8 @@ public class IExHubXdsbProperties {
 
         @NotBlank
         private String homeCommunityId;
+
+        @NotNull
+        private boolean getHealthDataBasedOnEnterpriseId;
     }
 }

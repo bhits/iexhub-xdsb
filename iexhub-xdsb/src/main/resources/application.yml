@@ -15,7 +15,11 @@ c2s:
       xdsbRegistryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsregistryb
       xdsbRepositoryEndpointURI: http://bhitsdevhie01:9080/axis2/services/xdsrepositoryb
       xdsbRepositoryUniqueId: 1.3.6.1.4.1.21367.2010.1.2.1040
+      #Also known as Global Domain Id
       homeCommunityId: 2.16.840.1.113883.4.357
+      # If getPatientHealthDataBasedOnEnterpriseId=false, call to xds.b registry is made using the local(C2S) MRN
+      # If getPatientHealthDataBasedOnEnterpriseId=true, call to xds.b registry is made using the patient's Enterprise ID
+      getHealthDataBasedOnEnterpriseId: true
       clientSocketTimeoutInMs: 768000
 ---
 spring.profiles: standalone-ssl
