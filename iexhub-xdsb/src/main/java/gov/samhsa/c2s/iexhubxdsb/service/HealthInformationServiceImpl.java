@@ -12,7 +12,7 @@ import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.adapter.XdsbReposito
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.IExHubPixPdqClient;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.UmsClient;
-import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.EmpiPatientDto;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.IdentifierSystemDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
@@ -92,8 +92,8 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
 
         if(iexhubXdsbProperties.getXdsb().isGetHealthDataBasedOnEnterpriseId()){
-            EmpiPatientDto empiPatientDto = getEnterprisePatientId(patientId, oId);
-            searchByPatientId = empiPatientDto.getPatientId() + "^^^&" + empiPatientDto.getIdentifier() + "&" + empiPatientDto.getIdentifierType();
+            PatientIdentifierDto patientEnterpriseId = getEnterprisePatientId(patientId, oId);
+            searchByPatientId = patientEnterpriseId.getPatientId() + "^^^&" + patientEnterpriseId.getIdentifier() + "&" + patientEnterpriseId.getIdentifierType();
         } else {
             //Convert patientId to the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
             searchByPatientId = patientId + "^^^&" + oId + "&" + "ISO";
@@ -330,11 +330,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         }
     }
 
-    private EmpiPatientDto getEnterprisePatientId(String patientId, String oid) {
+    private PatientIdentifierDto getEnterprisePatientId(String patientId, String oid) {
         log.info("Fetching Patient EnterpriseId from IExHubPixPdq...");
         try {
             //patientId is MRN, not Patient.id
-            EmpiPatientDto enterprisePatientId = iexhubPixPdqClient.getPatientEnterpriseId(patientId, oid);
+            PatientIdentifierDto enterprisePatientId = iexhubPixPdqClient.getPatientEnterpriseId(patientId, oid);
             log.info("Found Patient EnterpriseId from IExHubPixPdq.");
             return enterprisePatientId;
         }
