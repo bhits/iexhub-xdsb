@@ -64,6 +64,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     private static final String NODE_ATTRIBUTE_NAME = "root";
     private static final String CCD_TEMPLATE_ID_ROOT_VALUE = "2.16.840.1.113883.10.20.22.1.2";
     private static final String XPATH_EVALUATION_EXPRESSION = "/hl7:ClinicalDocument/hl7:templateId";
+    private static final String DOCUMENT_SUFFIX = "ISO";
 
 
     @Autowired
@@ -159,7 +160,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         try {
             log.info("Calling XdsB Repository");
-            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), iexhubXdsbProperties.getXdsb().getHomeCommunityId(), XdsbDocumentType.CLINICAL_DOCUMENT);
+            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), iexhubXdsbProperties.getXdsb().getHomeCommunityId(), XdsbDocumentType.CLINICAL_DOCUMENT, DOCUMENT_SUFFIX);
             log.info("Call to XdsB Repository was successful. Successfully published the document to HIE.");
         }
         catch (SimpleMarshallerException e) {
