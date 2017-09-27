@@ -83,6 +83,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     public String getPatientHealthDataFromHIE(String patientId) {
         String jsonOutput;
         String searchByPatientId;
+        String identifierType = "ISO";
         //Use PatientId to get local Oid from UMS
         IdentifierSystemDto identifier = getPatientIdentifier(patientId);
 
@@ -93,10 +94,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         if(iexhubXdsbProperties.getXdsb().isGetHealthDataBasedOnEnterpriseId()){
             PatientIdentifierDto patientEnterpriseId = getEnterprisePatientId(patientId, oId);
+            identifierType = patientEnterpriseId.getIdentifierType();
             searchByPatientId = patientEnterpriseId.getPatientId() + "^^^&" + patientEnterpriseId.getIdentifier() + "&" + patientEnterpriseId.getIdentifierType();
         } else {
             //Convert patientId to the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
-            searchByPatientId = patientId + "^^^&" + oId + "&" + "ISO";
+            searchByPatientId = patientId + "^^^&" + oId + "&" + identifierType;
         }
 
         log.info("Calling XdsB Registry");
@@ -144,7 +146,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     @Override
-    public void publishPatientHealthDataToHIE(MultipartFile clinicalDoc) {
+    public void publishPatientHealthDataToHIE(MultipartFile clinicalDoc, PatientIdentifierDto patientIdentifierDto) {
         //TODO: Add additional checks as needed when this api is called within C2S
         byte[] documentContent;
         try {
@@ -159,7 +161,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         try {
             log.info("Calling XdsB Repository");
-            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), iexhubXdsbProperties.getXdsb().getHomeCommunityId(), XdsbDocumentType.CLINICAL_DOCUMENT);
+            xdsbRepositoryAdapter.documentRepositoryRetrieveDocumentSet(new String(documentContent), iexhubXdsbProperties.getXdsb().getHomeCommunityId(), XdsbDocumentType.CLINICAL_DOCUMENT, patientIdentifierDto.getIdentifierType());
             log.info("Call to XdsB Repository was successful. Successfully published the document to HIE.");
         }
         catch (SimpleMarshallerException e) {
