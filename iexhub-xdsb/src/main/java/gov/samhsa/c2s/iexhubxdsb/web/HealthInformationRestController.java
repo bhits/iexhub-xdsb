@@ -1,5 +1,6 @@
 package gov.samhsa.c2s.iexhubxdsb.web;
 
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.service.HealthInformationService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,8 +26,9 @@ public class HealthInformationRestController {
     }
 
     @PostMapping("/health-information")
-    public void publishPatientHealthDataToHIE(@RequestParam(value = "clinicalDocument") MultipartFile documentFile) {
-        healthInfoService.publishPatientHealthDataToHIE(documentFile);
+    public void publishPatientHealthDataToHIE(@RequestParam(value = "clinicalDocument") MultipartFile documentFile,
+                                              @RequestParam(value = "patientIdentifier") PatientIdentifierDto patientIdentifierDto) {
+        healthInfoService.publishPatientHealthDataToHIE(documentFile, patientIdentifierDto);
     }
 
 }
