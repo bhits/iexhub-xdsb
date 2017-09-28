@@ -1,8 +1,8 @@
 package gov.samhsa.c2s.iexhubxdsb.config;
 
+import gov.samhsa.c2s.common.cxf.ContentTypeRebuildingOutboundSoapInterceptor;
 import gov.samhsa.c2s.common.document.transformer.XmlTransformer;
 import gov.samhsa.c2s.common.marshaller.SimpleMarshaller;
-import gov.samhsa.c2s.common.xdsbclient.cxf.ContentTypeRebuildingOutboundSoapInterceptor;
 import gov.samhsa.c2s.common.xdsbclient.registry.wsclient.XdsbRegistryWebServiceClient;
 import gov.samhsa.c2s.common.xdsbclient.registry.wsclient.adapter.XdsbRegistryAdapter;
 import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.XdsbRepositoryWebServiceClient;
@@ -46,7 +46,7 @@ public class XdsbServiceConfig {
     }
 
     @Bean
-    XdsbRepositoryWebServiceClient xdsbRepositoryWebServiceClient() {
+    public XdsbRepositoryWebServiceClient xdsbRepositoryWebServiceClient() {
         XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(xdsbProperties.getXdsb().getXdsbRepositoryEndpointURI());
         client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
         return client;
