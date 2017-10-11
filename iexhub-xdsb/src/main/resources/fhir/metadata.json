@@ -1,0 +1,33 @@
+{
+  "resourceType": "CapabilityStatement",
+  "status": "active",
+  "date": null,
+  "publisher": null,
+  "kind": "instance",
+  "software": {
+    "name": null,
+    "version": null
+  },
+  "implementation": {
+    "description": null
+  },
+  "fhirVersion": "1.8.0",
+  "acceptUnknown": "no",
+  "format": [
+    "application/fhir+json"
+  ],
+  "rest": [
+    {
+      "mode": "server",
+      "operation": [
+        {
+          "name": "everything",
+          "definition": {
+            "reference": "OperationDefinition/Patient-i-everything"
+          }
+        }
+      ]
+    }
+  ]
+}
+
