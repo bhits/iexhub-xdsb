@@ -372,7 +372,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     @Override
-    public String getFhirResourcesByPaitentid(String patientId) throws Exception {
+    public String getFhirResourcesByPaitentid(String patientId){
 
         log.info("Calling XdsB Registry");
         AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(patientId, XdsbDocumentType.CLINICAL_DOCUMENT);
@@ -386,11 +386,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         log.info("XdsB Registry call was successful");
 
         List<JAXBElement<? extends IdentifiableType>> documentObjects = adhocQueryResponse.getRegistryObjectList().getIdentifiable();
+        Bundle bundle = new Bundle();
 
         if ((documentObjects == null) ||
                 (documentObjects.size() <= 0)) {
-            log.info("No documents found for the given Patient ID");
-            throw new NoDocumentsFoundException("No documents found for the given Patient ID");
+            bundle.setTotal(0);
         } else {
             log.info("Some documents were found in the Registry for the given Patient ID");
             HashMap<String, String> documents = getDocumentsFromDocumentObjects(documentObjects);
@@ -406,8 +406,6 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             RetrieveDocumentSetResponseType retrieveDocumentSetResponse = xdsbRepositoryAdapter.retrieveDocumentSet(documentSetRequest);
             log.info("Call to XdsB Repository was successful");
 
-            Bundle bundle = new Bundle();
-
             if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
                 log.info("Converting document found in XdsB Repository to FHIR JSON");
                 bundle = convertDocumentResponseToFhir(retrieveDocumentSetResponse.getDocumentResponse());
@@ -416,16 +414,13 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 log.info("Retrieve Document Set transaction found no documents for the given Patient ID");
                 bundle.setTotal(0);
             }
-
-            bundle.setId(UUID.randomUUID().toString());
-            Meta meta = new Meta();
-            meta.setLastUpdated(new Date());
-            bundle.setMeta(meta);
-            bundle.setType(Bundle.BundleType.SEARCHSET);
-
-            return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
         }
-
+        bundle.setId(UUID.randomUUID().toString());
+        Meta meta = new Meta();
+        meta.setLastUpdated(new Date());
+        bundle.setMeta(meta);
+        bundle.setType(Bundle.BundleType.SEARCHSET);
+        return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
     }
 
     private Bundle convertDocumentResponseToFhir(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
