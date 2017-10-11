@@ -415,11 +415,9 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 bundle.setTotal(0);
             }
         }
-        bundle.setId(UUID.randomUUID().toString());
         Meta meta = new Meta();
         meta.setLastUpdated(new Date());
-        bundle.setMeta(meta);
-        bundle.setType(Bundle.BundleType.SEARCHSET);
+        bundle.setType(Bundle.BundleType.SEARCHSET).setId(UUID.randomUUID().toString()).setMeta(meta);
         return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
     }
 
