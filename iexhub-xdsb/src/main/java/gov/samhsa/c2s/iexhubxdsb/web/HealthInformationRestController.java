@@ -31,7 +31,6 @@ public class HealthInformationRestController {
 
     @GetMapping("/Patient/{patientId}/$everything")
     public String getFhirResourcesByPaitentid(@PathVariable String patientId) throws Exception {
-        return healthInfoService.getgetFhirResourcesByPaitentid(patientId);
+        return healthInfoService.getFhirResourcesByPaitentid(patientId);
     }
-
 }

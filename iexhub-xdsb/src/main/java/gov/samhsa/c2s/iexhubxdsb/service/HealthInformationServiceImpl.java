@@ -34,9 +34,10 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
 import org.apache.commons.lang.StringUtils;
 import org.fhir.ucum.UcumEssenceService;
+import org.fhir.ucum.UcumException;
 import org.hl7.fhir.convertors.CCDAConverter;
-import org.hl7.fhir.dstu3.hapi.validation.HapiWorkerContext;
-import org.hl7.fhir.dstu3.hapi.validation.IValidationSupport;
+import org.hl7.fhir.dstu3.hapi.ctx.HapiWorkerContext;
+import org.hl7.fhir.dstu3.hapi.ctx.IValidationSupport;
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.Meta;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -371,18 +372,10 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     @Override
-    public String getgetFhirResourcesByPaitentid(String patientId) throws Exception {
-        String jsonOutput;
-        String searchByPatientId;
-        String identifierType = "ISO";
-        //Use PatientId to get local Oid from UMS
-        String oId = "2.16.840.1.113883.4.357";
-
-        //Convert patientId to the format: d3bb3930-7241-11e3-b4f7-00155d3a2124^^^&2.16.840.1.113883.4.357&ISO
-        searchByPatientId = patientId + "^^^&" + oId + "&" + identifierType;
+    public String getFhirResourcesByPaitentid(String patientId) throws Exception {
 
         log.info("Calling XdsB Registry");
-        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(searchByPatientId, XdsbDocumentType.CLINICAL_DOCUMENT);
+        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(patientId, XdsbDocumentType.CLINICAL_DOCUMENT);
 
         //Check for errors
         if ((adhocQueryResponse.getRegistryErrorList() != null) &&
@@ -413,33 +406,48 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             RetrieveDocumentSetResponseType retrieveDocumentSetResponse = xdsbRepositoryAdapter.retrieveDocumentSet(documentSetRequest);
             log.info("Call to XdsB Repository was successful");
 
-            IValidationSupport validationSupport = (IValidationSupport) fhirContext.getValidationSupport();
-
-            InputStream inputStream=this.getClass().getClassLoader().getResourceAsStream("ucum-essence.xml");
-
-            CCDAConverter ccdaConverter = new CCDAConverter(new UcumEssenceService(inputStream), new HapiWorkerContext(fhirContext, validationSupport) );
             Bundle bundle = new Bundle();
 
             if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
-                log.info("Converting document found in XdsB Repository to JSON");
-                //jsonOutput = convertDocumentResponseToJSON(retrieveDocumentSetResponse.getDocumentResponse());
-                bundle=ccdaConverter.convert(new ByteArrayInputStream(retrieveDocumentSetResponse.getDocumentResponse().get(0).getDocument()));
-
+                log.info("Converting document found in XdsB Repository to FHIR JSON");
+                bundle = convertDocumentResponseToFhir(retrieveDocumentSetResponse.getDocumentResponse());
+                bundle.setTotal(retrieveDocumentSetResponse.getDocumentResponse().size());
             } else {
                 log.info("Retrieve Document Set transaction found no documents for the given Patient ID");
-                throw new NoDocumentsFoundException("Retrieve Document Set transaction found no documents for the given Patient ID");
+                bundle.setTotal(0);
             }
 
-        //bundle.addEntry().setResource(patient);
-        bundle.setTotal(0);
-        bundle.setId(UUID.randomUUID().toString());
-        bundle.setType(Bundle.BundleType.SEARCHSET);
-        Meta meta=new Meta();
-        meta.setLastUpdated(new Date());
-        bundle.setMeta(meta);
+            bundle.setId(UUID.randomUUID().toString());
+            Meta meta = new Meta();
+            meta.setLastUpdated(new Date());
+            bundle.setMeta(meta);
+            bundle.setType(Bundle.BundleType.SEARCHSET);
 
-        return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
+            return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
+        }
+
     }
 
+    private Bundle convertDocumentResponseToFhir(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
+
+        IValidationSupport validationSupport = (IValidationSupport) fhirContext.getValidationSupport();
+
+        InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("ucum-essence.xml");
+
+        Bundle bundle = new Bundle();
+        try {
+            CCDAConverter ccdaConverter = new CCDAConverter(new UcumEssenceService(inputStream), new HapiWorkerContext(fhirContext, validationSupport));
+            documentResponseList.stream().forEach(documentResponse -> {
+                        try {
+                            bundle.addEntry().setResource(ccdaConverter.convert(new ByteArrayInputStream(documentResponse.getDocument())));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+            );
+        } catch (UcumException e) {
+            e.printStackTrace();
+        }
+        return bundle;
     }
 }
