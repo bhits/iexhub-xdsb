@@ -46,7 +46,7 @@ public class XdsbServiceConfig {
     }
 
     @Bean
-    XdsbRepositoryWebServiceClient xdsbRepositoryWebServiceClient() {
+    public XdsbRepositoryWebServiceClient xdsbRepositoryWebServiceClient() {
         XdsbRepositoryWebServiceClient client = new XdsbRepositoryWebServiceClient(xdsbProperties.getXdsb().getXdsbRepositoryEndpointURI());
         client.setOutInterceptors(Collections.singletonList(new ContentTypeRebuildingOutboundSoapInterceptor()));
         return client;
