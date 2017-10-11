@@ -52,7 +52,7 @@
         <spring-cloud.version>Dalston.SR3</spring-cloud.version>
         <docker.maven.version>0.4.13</docker.maven.version>
 
-        <c2s.common-libraries.xdsb.version>0.3.0-SNAPSHOT</c2s.common-libraries.xdsb.version>
+        <c2s.common-libraries.xdsb.version>1.17.0-SNAPSHOT</c2s.common-libraries.xdsb.version>
         <c2s.document-accessor.version>1.16.0</c2s.document-accessor.version>
         <c2s.document-converter.version>1.16.0</c2s.document-converter.version>
         <!-- Third-party library versions -->
