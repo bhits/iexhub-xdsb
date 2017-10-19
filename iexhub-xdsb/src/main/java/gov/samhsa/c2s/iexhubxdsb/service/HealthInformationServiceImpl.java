@@ -1,5 +1,7 @@
 package gov.samhsa.c2s.iexhubxdsb.service;
 
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.parser.JsonParser;
 import feign.FeignException;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessor;
 import gov.samhsa.c2s.common.document.accessor.DocumentAccessorException;
@@ -12,9 +14,10 @@ import gov.samhsa.c2s.common.xdsbclient.repository.wsclient.adapter.XdsbReposito
 import gov.samhsa.c2s.iexhubxdsb.config.IExHubXdsbProperties;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.IExHubPixPdqClient;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.UmsClient;
-import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.IdentifierSystemDto;
+import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.FhirConverterException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.IExHubPixPdqClientException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
@@ -31,6 +34,13 @@ import oasis.names.tc.ebxml_regrep.xsd.rim._3.IdentifiableType;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.LocalizedStringType;
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryError;
 import org.apache.commons.lang.StringUtils;
+import org.fhir.ucum.UcumEssenceService;
+import org.fhir.ucum.UcumException;
+import org.hl7.fhir.convertors.CCDAConverter;
+import org.hl7.fhir.dstu3.hapi.ctx.HapiWorkerContext;
+import org.hl7.fhir.dstu3.hapi.ctx.IValidationSupport;
+import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Meta;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -40,11 +50,15 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import javax.xml.bind.JAXBElement;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,6 +73,13 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     private XmlTransformer xmlTransformer;
     private XdsbRegistryAdapter xdsbRegistryAdapter;
     private XdsbRepositoryAdapter xdsbRepositoryAdapter;
+
+
+    @Autowired
+    private JsonParser fhirJsonParser;
+
+    @Autowired
+    private FhirContext fhirContext;
 
     private static final String CDAToJsonXSL = "CDA_to_JSON.xsl";
     private static final String NODE_ATTRIBUTE_NAME = "root";
@@ -349,5 +370,79 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                 throw new IExHubPixPdqClientException("An unknown error occurred while attempting to communicate with IExHubPixPdq");
             }
         }
+    }
+
+    @Override
+    public String getFhirResourcesByPatientId(String patientId){
+
+        log.info("Calling XdsB Registry");
+        AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(patientId, XdsbDocumentType.CLINICAL_DOCUMENT);
+
+        //Check for errors
+        if ((adhocQueryResponse.getRegistryErrorList() != null) &&
+                (adhocQueryResponse.getRegistryErrorList().getRegistryError().size() > 0)) {
+            logErrorMessages(adhocQueryResponse.getRegistryErrorList().getRegistryError());
+            throw new XdsbRegistryException("Call to XdsB registry returned an error. Check iexhub-xdsb.log for details.");
+        }
+        log.info("XdsB Registry call was successful");
+
+        List<JAXBElement<? extends IdentifiableType>> documentObjects = adhocQueryResponse.getRegistryObjectList().getIdentifiable();
+        Bundle bundle = new Bundle();
+
+        if ((documentObjects == null) ||
+                (documentObjects.size() <= 0)) {
+            log.info("No documents were found in the Registry for the given Patient ID: " + patientId);
+            bundle.setTotal(0);
+        } else {
+            log.info("Some documents were found in the Registry for the given Patient ID: "  + patientId);
+            HashMap<String, String> documents = getDocumentsFromDocumentObjects(documentObjects);
+
+            if (documents.size() <= 0) {
+                log.info("No XDSDocumentEntry documents found for the given Patient ID");
+                throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID: " + patientId);
+            }
+            //Perform XDS.b Repository call
+            RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getXdsb().getXdsbRepositoryUniqueId(), documents);
+
+            log.info("Calling XdsB Repository");
+            RetrieveDocumentSetResponseType retrieveDocumentSetResponse = xdsbRepositoryAdapter.retrieveDocumentSet(documentSetRequest);
+            log.info("Call to XdsB Repository was successful");
+
+            if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
+                log.info("Converting document found in XdsB Repository to FHIR Bundle");
+                bundle = convertDocumentResponseToFhirBundle(retrieveDocumentSetResponse.getDocumentResponse());
+                bundle.setTotal(retrieveDocumentSetResponse.getDocumentResponse().size());
+            } else {
+                log.info("Retrieve Document Set transaction found no documents for the given Patient ID: " + patientId);
+                bundle.setTotal(0);
+            }
+        }
+        Meta meta = new Meta();
+        meta.setLastUpdated(new Date());
+        bundle.setType(Bundle.BundleType.SEARCHSET).setId(UUID.randomUUID().toString()).setMeta(meta);
+        return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
+    }
+
+    private Bundle convertDocumentResponseToFhirBundle(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
+
+        IValidationSupport validationSupport = (IValidationSupport) fhirContext.getValidationSupport();
+
+        InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("ucum-essence.xml");
+
+        Bundle bundle = new Bundle();
+        try {
+            CCDAConverter ccdaConverter = new CCDAConverter(new UcumEssenceService(inputStream), new HapiWorkerContext(fhirContext, validationSupport));
+            documentResponseList.stream().forEach(documentResponse -> {
+                        try {
+                            bundle.addEntry().setResource(ccdaConverter.convert(new ByteArrayInputStream(documentResponse.getDocument())));
+                        } catch (Exception e) {
+                            throw new FhirConverterException("Failed to convert documents to fhir bundle.");
+                        }
+                    }
+            );
+        } catch (UcumException e) {
+            throw new FhirConverterException("Failed to initialize hapi fhir converter.");
+        }
+        return bundle;
     }
 }

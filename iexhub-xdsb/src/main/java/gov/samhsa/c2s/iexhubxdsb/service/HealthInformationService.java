@@ -16,4 +16,12 @@ public interface HealthInformationService {
      * @param clinicalDoc The Clinical Document
      */
     void publishPatientHealthDataToHIE(MultipartFile clinicalDoc, PatientIdentifierDto patientIdentifierDto);
+
+    /**
+     *
+     * @param patientId
+     * @return
+     * @throws Exception
+     */
+    String getFhirResourcesByPatientId(String patientId);
 }

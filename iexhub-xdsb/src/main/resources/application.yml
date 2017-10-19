@@ -21,6 +21,14 @@ c2s:
       # If getPatientHealthDataBasedOnEnterpriseId=true, call to xds.b registry is made using the patient's Enterprise ID
       getHealthDataBasedOnEnterpriseId: true
       clientSocketTimeoutInMs: 768000
+    fhir:
+      capability-statement:
+        publisher: BHITS
+        software:
+          name: Consent2Share IExHub PIX/PDQ
+          version: @project.version@
+        implementation:
+          description: ${c2s.iexhub-xdsb.fhir.capability-statement.software.name}
 ---
 spring.profiles: standalone-ssl
 spring:

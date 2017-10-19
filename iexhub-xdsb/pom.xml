@@ -57,6 +57,7 @@
         <saxon-HE.version>9.8.0-3</saxon-HE.version>
         <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
         <logstash-logback-encoder.version>4.11</logstash-logback-encoder.version>
+        <hapi.fhir.version>3.0.0</hapi.fhir.version>
     </properties>
 
     <dependencies>
@@ -138,6 +139,32 @@
             <artifactId>document-converter</artifactId>
             <version>${c2s.common-libraries.version}</version>
         </dependency>
+        <!-- HAPI FHIR JARS -->
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-base</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-validation-resources-dstu3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-structures-dstu3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-converter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-utilities</artifactId>
+        </dependency>
+        <dependency>
+        <groupId>ca.uhn.hapi.fhir</groupId>
+        <artifactId>hapi-fhir-validation</artifactId>
+        </dependency>
+        <!-- HAPI FHIR JARS -->
     </dependencies>
 
     <dependencyManagement>
@@ -154,6 +181,38 @@
                 <artifactId>xdsb-client</artifactId>
                 <version>${c2s.common-libraries.version}</version>
             </dependency>
+            <!-- HAPI FHIR JARS -->
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-base</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-validation-resources-dstu3</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-structures-dstu3</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-converter</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-utilities</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi.fhir</groupId>
+                <artifactId>hapi-fhir-validation</artifactId>
+                <version>${hapi.fhir.version}</version>
+            </dependency>
+            <!-- HAPI FHIR JARS -->
         </dependencies>
     </dependencyManagement>
 
