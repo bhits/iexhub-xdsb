@@ -17,6 +17,7 @@ import gov.samhsa.c2s.iexhubxdsb.infrastructure.UmsClient;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.IdentifierSystemDto;
 import gov.samhsa.c2s.iexhubxdsb.infrastructure.dto.PatientIdentifierDto;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.DocumentNotPublishedException;
+import gov.samhsa.c2s.iexhubxdsb.service.exception.FhirConverterException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.FileParseException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.IExHubPixPdqClientException;
 import gov.samhsa.c2s.iexhubxdsb.service.exception.NoDocumentsFoundException;
@@ -372,7 +373,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
     }
 
     @Override
-    public String getFhirResourcesByPaitentid(String patientId){
+    public String getFhirResourcesByPatientId(String patientId){
 
         log.info("Calling XdsB Registry");
         AdhocQueryResponse adhocQueryResponse = xdsbRegistryAdapter.registryStoredQuery(patientId, XdsbDocumentType.CLINICAL_DOCUMENT);
@@ -390,14 +391,15 @@ public class HealthInformationServiceImpl implements HealthInformationService {
 
         if ((documentObjects == null) ||
                 (documentObjects.size() <= 0)) {
+            log.info("No documents were found in the Registry for the given Patient ID: " + patientId);
             bundle.setTotal(0);
         } else {
-            log.info("Some documents were found in the Registry for the given Patient ID");
+            log.info("Some documents were found in the Registry for the given Patient ID: "  + patientId);
             HashMap<String, String> documents = getDocumentsFromDocumentObjects(documentObjects);
 
             if (documents.size() <= 0) {
                 log.info("No XDSDocumentEntry documents found for the given Patient ID");
-                throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID");
+                throw new NoDocumentsFoundException("No XDSDocumentEntry documents found for the given Patient ID: " + patientId);
             }
             //Perform XDS.b Repository call
             RetrieveDocumentSetRequestType documentSetRequest = constructDocumentSetRequest(iexhubXdsbProperties.getXdsb().getXdsbRepositoryUniqueId(), documents);
@@ -407,11 +409,11 @@ public class HealthInformationServiceImpl implements HealthInformationService {
             log.info("Call to XdsB Repository was successful");
 
             if (retrieveDocumentSetResponse != null && retrieveDocumentSetResponse.getDocumentResponse() != null && retrieveDocumentSetResponse.getDocumentResponse().size() > 0) {
-                log.info("Converting document found in XdsB Repository to FHIR JSON");
-                bundle = convertDocumentResponseToFhir(retrieveDocumentSetResponse.getDocumentResponse());
+                log.info("Converting document found in XdsB Repository to FHIR Bundle");
+                bundle = convertDocumentResponseToFhirBundle(retrieveDocumentSetResponse.getDocumentResponse());
                 bundle.setTotal(retrieveDocumentSetResponse.getDocumentResponse().size());
             } else {
-                log.info("Retrieve Document Set transaction found no documents for the given Patient ID");
+                log.info("Retrieve Document Set transaction found no documents for the given Patient ID: " + patientId);
                 bundle.setTotal(0);
             }
         }
@@ -421,7 +423,7 @@ public class HealthInformationServiceImpl implements HealthInformationService {
         return fhirJsonParser.setPrettyPrint(true).encodeResourceToString(bundle);
     }
 
-    private Bundle convertDocumentResponseToFhir(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
+    private Bundle convertDocumentResponseToFhirBundle(List<RetrieveDocumentSetResponseType.DocumentResponse> documentResponseList) {
 
         IValidationSupport validationSupport = (IValidationSupport) fhirContext.getValidationSupport();
 
@@ -434,12 +436,12 @@ public class HealthInformationServiceImpl implements HealthInformationService {
                         try {
                             bundle.addEntry().setResource(ccdaConverter.convert(new ByteArrayInputStream(documentResponse.getDocument())));
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            throw new FhirConverterException("Failed to convert documents to fhir bundle.");
                         }
                     }
             );
         } catch (UcumException e) {
-            e.printStackTrace();
+            throw new FhirConverterException("Failed to initialize hapi fhir converter.");
         }
         return bundle;
     }

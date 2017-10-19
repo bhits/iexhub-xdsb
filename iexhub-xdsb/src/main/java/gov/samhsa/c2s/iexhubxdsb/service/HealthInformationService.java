@@ -23,5 +23,5 @@ public interface HealthInformationService {
      * @return
      * @throws Exception
      */
-    String getFhirResourcesByPaitentid(String patientId);
+    String getFhirResourcesByPatientId(String patientId);
 }
