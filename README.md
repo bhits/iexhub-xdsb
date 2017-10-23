@@ -98,6 +98,15 @@ Java has a default CA Certificates Store that allows it to trust well-known cert
 
 [//]: # (## API Documentation)
 
+## Issues with HAPI FHIR Converter
+
+IExHub XDS.b is using hapi fhir converter to converte CCDA document to FHIR bundle. Here is list of issues found in hapi fhir converter.
+
++ Not support multiple "languageCommunication" under the  "patient" section
++ Not support “negationInd” attribute under  “observation”
++ Not support “xsi:type= PQ" in “value” attribute in "Alcoholic drinks per day" under "Social history observation"
++ Using wrong template id for "TobaccoUse"
+
 ## Contact
 
 If you have any questions, comments, or concerns please see [Consent2Share](https://bhits-dev.github.io/consent2share/) project site.
